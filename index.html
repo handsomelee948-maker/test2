@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <title>实景三维时空分析工具</title>
+    <!-- SuperMap3D CSS -->
+    <link href="../Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
+    
+    <!-- 自定义样式 -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/property-editor.css">
+    <link rel="stylesheet" href="css/ai-chat.css">
+    <script src="../Build/SuperMap3D/SuperMap3D.js"></script>
+</head>
+<body>
+    <!-- 主容器 -->
+    <div id="Container"></div>
+    
+    <!-- 主界面剖面图表容器 -->
+    <div id="mainProfileChartContainer" class="main-profile-chart" style="position: fixed; top: 80px; right: 20px; width: 400px; background: rgba(255,255,255,0.98); border: 1px solid #ccc; border-radius: 8px; padding: 15px; display: none; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h5 style="margin: 0; color: #333;">剖面图表</h5>
+            <button id="closeMainProfileChart" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #666;">&times;</button>
+        </div>
+        <canvas id="mainProfileChart" width="400" height="200" style="border: 1px solid #ddd; background-color: #fff; width: 100%; height: auto;"></canvas>
+    </div>
+    
+    <!-- 加载动画 -->
+    <div id='loadingbar' class="spinner">
+        <div class="spinner-container container1">
+            <div class="circle1"></div>
+            <div class="circle2"></div>
+            <div class="circle3"></div>
+            <div class="circle4"></div>
+        </div>
+        <div class="spinner-container container2">
+            <div class="circle1"></div>
+            <div class="circle2"></div>
+            <div class="circle3"></div>
+            <div class="circle4"></div>
+        </div>
+        <div class="spinner-container container3">
+            <div class="circle1"></div>
+            <div class="circle2"></div>
+            <div class="circle3"></div>
+            <div class="circle4"></div>
+        </div>
+    </div>
+
+    <!-- 顶部工具栏 -->
+    <div id="topToolbar" class="top-toolbar">
+        <!-- 主工具栏行 -->
+        <div class="toolbar-row main-toolbar-row">
+            <!-- 系统标题 -->
+            <div class="system-title-section">
+                <h1 class="system-title">实景三维时空分析系统</h1>
+            </div>
+            
+            <!-- 功能模块区域 -->
+            <div class="modules-container">
+                <!-- 模型管理模块 (4个功能) -->
+                <div class="module-section" data-functions="4">
+                    <div class="module-header">
+                        <span class="module-title">模型管理</span>
+                    </div>
+                    <div class="module-functions">
+                        <button id="loadModelBtn" class="btn btn-primary">加载模型</button>
+                        <button id="batchLoadBtn" class="btn btn-success">批量加载</button>
+                        <button id="flyToModelsBtn" class="btn btn-warning">飞行到模型</button>
+                        <button id="layerManagementBtn" class="btn btn-info">图层管理</button>
+                    </div>
+                </div>
+                
+                <!-- 室内导航模块 (3个功能) -->
+                <div class="module-section" data-functions="3">
+                    <div class="module-header">
+                        <span class="module-title">室内导航</span>
+                    </div>
+                    <div class="module-functions">
+                        <button id="startNavigationBtn" class="btn btn-success">开始导航</button>
+                        <button id="setRouteBtn" class="btn btn-warning">设置路径</button>
+                        <button id="clearNavigationBtn" class="btn btn-danger">清除路径</button>
+                    </div>
+                </div>
+                
+                <!-- 数字孪生分析模块 (6个功能) -->
+                <div class="module-section" data-functions="6">
+                    <div class="module-header">
+                        <span class="module-title">数字孪生分析</span>
+                    </div>
+                    <div class="module-functions">
+                        <button id="spatialAnalysisBtn" class="btn btn-primary">空间分析</button>
+                        <button id="viewshedBtn" class="btn btn-success">可视域分析</button>
+                        <button id="sightlineBtn" class="btn btn-info">通视分析</button>
+                        <button id="shadowAnalysisBtn" class="btn btn-warning">阴影分析</button>
+                        <button id="skylineAnalysisBtn" class="btn btn-secondary">天际线分析</button>
+                        <button id="clearAnalysisBtn" class="btn btn-danger">清除分析</button>
+                    </div>
+                </div>
+                
+                <!-- 场景效果模块 (2个功能) -->
+                <div class="module-section" data-functions="2">
+                    <div class="module-header">
+                        <span class="module-title">场景效果</span>
+                    </div>
+                    <div class="module-functions">
+                        <button id="lightingBtn" class="btn btn-secondary">光照设置</button>
+                        <button id="bloomBtn" class="btn btn-warning">泛光效果</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 左侧图层管理面板 -->
+    <div id="leftPanel" class="left-panel">
+        <div class="panel-header">
+            <h4>图层管理</h4>
+            <button id="toggleLeftPanel" class="toggle-btn">◀</button>
+        </div>
+        <div class="panel-content">
+            <div class="layer-controls">
+                <button id="addLayerBtn" class="btn btn-sm btn-primary">添加图层</button>
+                <button id="removeLayerBtn" class="btn btn-sm btn-secondary">删除图层</button>
+                <button id="layerPropertiesBtn" class="btn btn-sm btn-info">属性</button>
+                <button id="fullscreenBtn" class="btn btn-sm btn-success">全屏</button>
+                <button id="exitFullscreenBtn" class="btn btn-sm btn-warning" style="display: none;">退出全屏</button>
+            </div>
+            <div id="layerTree" class="layer-tree"></div>
+        </div>
+    </div>
+
+    <!-- 临时面板容器（用于弹出的功能面板） -->
+    <div id="tempPanelContainer"></div>
+
+    <!-- 导航面板 -->
+    <div id="navigationPanel" class="panel">
+        <div class="panel-header">
+            <h4>室内导航</h4>
+            <button id="closeNavigation" class="close-btn">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="nav-controls">
+                <label>起点：</label>
+                <input type="text" id="startPoint" placeholder="点击地图选择起点">
+                <label>终点：</label>
+                <input type="text" id="endPoint" placeholder="点击地图选择终点">
+                <div class="nav-buttons">
+                    <button id="calculateRoute" class="btn btn-primary">计算路径</button>
+                    <button id="startWalk" class="btn btn-success">开始漫游</button>
+                    <button id="stopWalk" class="btn btn-danger">停止漫游</button>
+                    <button id="clearNavigation" class="btn btn-outline-secondary">清除</button>
+                </div>
+            </div>
+            <div class="floor-controls">
+                <label>楼层选择：</label>
+                <select id="floorSelect">
+                    <option value="1">1楼</option>
+                    <option value="2">2楼</option>
+                    <option value="3">3楼</option>
+                    <option value="4">4楼</option>
+                    <option value="5">5楼</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分析面板 - 主菜单 -->
+    <div id="analysisPanel" class="panel">
+        <div class="panel-header">
+            <h4>空间分析</h4>
+            <button id="closeAnalysis" class="close-btn">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="analysis-menu">
+                <button id="openClipPanel" class="btn btn-primary analysis-menu-btn">剖面分析</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 剖面分析面板 -->
+    <div id="clipPanel" class="panel">
+        <div class="panel-header">
+            <h4>剖面分析</h4>
+            <button id="closeClip" class="close-btn">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="analysis-controls">
+                <p>点击地图绘制剖面线进行剖面分析</p>
+                <div class="control-buttons">
+                    <button id="startClip" class="btn btn-primary">开始分析</button>
+                    <button id="clearClip" class="btn btn-outline-secondary">清除结果</button>
+                </div>
+                <!-- 剖面图表显示区域 -->
+                <div id="profileChartContainer" style="margin-top: 15px; display: none;">
+                    <h5>剖面图表</h5>
+                    <canvas id="profileChart" width="400" height="200" style="border: 1px solid #ccc; background-color: rgba(255,255,255,0.9);"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- 可视域分析面板 -->
+    <div id="viewshedPanel" class="panel">
+        <div class="panel-header">
+            <h4>可视域分析</h4>
+            <button id="closeViewshed" class="close-btn">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="analysis-controls">
+                <p>选择功能进行可视域分析</p>
+                <div class="control-buttons">
+                    <button id="drawViewshed" class="btn btn-primary">绘制可视域</button>
+                    <button id="drawClipPlane" class="btn btn-secondary">绘制裁剪面</button>
+                    <button id="clearViewshed" class="btn btn-outline-secondary">清除</button>
+                </div>
+                <div class="control-options">
+                    <div class="option-item">
+                        <label for="clipMode">裁剪模式：</label>
+                        <select id="clipMode" class="form-select">
+                            <option value="keep-inside">保留区域内</option>
+                            <option value="keep-outside">保留区域外</option>
+                        </select>
+                    </div>
+                    <div class="option-item">
+                        <button id="propertyEditor" class="btn btn-info">属性编辑</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通视分析面板 -->
+    <div id="sightlinePanel" class="panel">
+        <div class="panel-header">
+            <h4>通视分析</h4>
+            <button id="closeSightline" class="close-btn">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="analysis-controls">
+                <p>选择功能进行通视分析</p>
+                <div class="control-buttons">
+                    <button id="addViewPoint" class="btn btn-primary">添加观察点</button>
+                    <button id="addTargetPoint" class="btn btn-secondary">添加目标点</button>
+                    <button id="clearSightline" class="btn btn-outline-secondary">清除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 阴影分析面板 -->
+    <div id="shadowPanel" class="panel">
+        <div class="panel-header">
+            <h4>阴影分析</h4>
+            <button id="closeShadowPanel" class="close-btn">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="analysis-controls">
+                <div class="shadow-params">
+                    <div class="param-item">
+                        <label for="shadowDate">日期选择：</label>
+                        <input id="shadowDate" type="date" value="2024-01-15"/>
+                    </div>
+                    <div class="param-item">
+                        <label for="shadowStartTime">开始时间：</label>
+                        <select id="shadowStartTime" class="form-select">
+                            <option value="6">6:00</option>
+                            <option value="8">8:00</option>
+                            <option value="10" selected>10:00</option>
+                            <option value="12">12:00</option>
+                            <option value="14">14:00</option>
+                            <option value="16">16:00</option>
+                            <option value="18">18:00</option>
+                        </select>
+                    </div>
+                    <div class="param-item">
+                        <label for="shadowEndTime">结束时间：</label>
+                        <select id="shadowEndTime" class="form-select">
+                            <option value="8">8:00</option>
+                            <option value="10">10:00</option>
+                            <option value="12">12:00</option>
+                            <option value="14" selected>14:00</option>
+                            <option value="16">16:00</option>
+                            <option value="18">18:00</option>
+                            <option value="20">20:00</option>
+                        </select>
+                    </div>
+                    <div class="param-item">
+                        <label for="shadowBottomHeight">底部高程：</label>
+                        <input id="shadowBottomHeight" type="number" value="20" min="0" max="1000"/>
+                    </div>
+                    <div class="param-item">
+                        <label for="shadowExtrudeHeight">拉伸高度：</label>
+                        <input id="shadowExtrudeHeight" type="number" value="20" min="1" max="500"/>
+                    </div>
+                </div>
+                <div class="control-buttons">
+                    <button id="startShadowAnalysis" class="btn btn-primary">开始分析</button>
+                    <button id="shadowSunlight" class="btn btn-warning">日照效果</button>
+                    <button id="getShadowRatio" class="btn btn-info">获取阴影率</button>
+                    <button id="clearShadow" class="btn btn-outline-secondary">清除</button>
+                </div>
+                <!-- 阴影率显示窗口 -->
+                <div id="shadowRatioBox" class="shadow-ratio-box" style="display: none;">
+                    <h5>阴影率信息</h5>
+                    <div class="ratio-info">
+                        <div class="info-item">
+                            <label>阴影率：</label>
+                            <input type="text" id="shadowRatioText" readonly/>
+                        </div>
+                        <div class="info-item">
+                            <label>经度：</label>
+                            <input type="text" id="shadowLongitudeText" readonly/>
+                        </div>
+                        <div class="info-item">
+                            <label>纬度：</label>
+                            <input type="text" id="shadowLatitudeText" readonly/>
+                        </div>
+                        <div class="info-item">
+                            <label>高程：</label>
+                            <input type="text" id="shadowHeightText" readonly/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 天际线分析面板 -->
+    <div id="skylinePanel" class="panel">
+        <div class="panel-header">
+            <h4>天际线分析</h4>
+            <button id="closeSkylinePanel" class="close-btn">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="analysis-controls">
+                <div class="skyline-params">
+                    <div class="param-item">
+                        <label for="skylineRadius">分析半径(米)：</label>
+                        <input id="skylineRadius" type="number" value="10000" min="1000" max="50000" step="1000"/>
+                    </div>
+                </div>
+                <div class="control-buttons">
+                    <button id="extractSkyline" class="btn btn-primary">提取天际线</button>
+                    <button id="getSkyline2D" class="btn btn-success">二维天际线</button>
+                    <button id="setLimitBody" class="btn btn-warning">绘制限高体</button>
+                    <button id="getSkylineArea" class="btn btn-info">拉伸闭合体</button>
+                    <button id="clearSkyline" class="btn btn-outline-secondary">清除</button>
+                </div>
+                <!-- 二维天际线图表容器 -->
+                <div id="skylineChart" class="skyline-chart" style="display: none; width: 100%; height: 300px; margin-top: 15px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 属性编辑面板 -->
+    <div id="propertyPanel" class="panel" style="display: none;">
+        <div class="panel-header">
+            <h4>属性编辑</h4>
+            <button id="closeProperty" class="close-btn">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="property-controls">
+                <div class="property-item">
+                    <label for="direction">方向(度):</label>
+                    <input type="range" id="direction" min="0" max="360" step="1.0" value="0">
+                    <input type="number" id="directionValue" min="0" max="360" step="1" value="0">
+                </div>
+                <div class="property-item">
+                    <label for="pitch">翻转(度):</label>
+                    <input type="range" id="pitch" min="-90" max="90" step="1.0" value="-10">
+                    <input type="number" id="pitchValue" min="-90" max="90" step="1" value="-10">
+                </div>
+                <div class="property-item">
+                    <label for="distance">距离(米):</label>
+                    <input type="range" id="distance" min="1" max="500" step="1.0" value="100">
+                    <input type="number" id="distanceValue" min="1" max="500" step="1" value="100">
+                </div>
+                <div class="property-item">
+                    <label for="horizontalFov">水平视场角(度):</label>
+                    <input type="range" id="horizontalFov" min="1" max="120" step="1" value="60">
+                    <input type="number" id="horizontalFovValue" min="1" max="120" step="1" value="60">
+                </div>
+                <div class="property-item">
+                    <label for="verticalFov">垂直视场角(度):</label>
+                    <input type="range" id="verticalFov" min="1" max="90" step="1.0" value="45">
+                    <input type="number" id="verticalFovValue" min="1" max="90" step="1" value="45">
+                </div>
+                <div class="property-item">
+                    <label for="visibleColor">可见区域颜色:</label>
+                    <input type="color" id="visibleColor" value="#00ff00">
+                </div>
+                <div class="property-item">
+                    <label for="invisibleColor">不可见区域颜色:</label>
+                    <input type="color" id="invisibleColor" value="#ff0000">
+                </div>
+                <p><small>本例中观察者附加高度：1.8 米</small></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 信息面板 -->
+    <div id="infoPanel" class="info-panel">
+        <div class="info-header">
+            <h4>对象信息</h4>
+            <button id="closeInfo" class="close-btn">&times;</button>
+        </div>
+        <div class="info-content">
+            <div id="objectInfo"></div>
+        </div>
+    </div>
+
+    <!-- 交互提示消息 -->
+    <div id="interactionMessage" class="interaction-message" style="display: none;">
+        <div class="message-content">
+            <span id="messageText"></span>
+            <button id="cancelInteraction" class="cancel-btn">取消</button>
+        </div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div id="statusBar" class="status-bar">
+        <span id="coordinates">坐标: </span>
+        <span id="cameraInfo">相机: </span>
+        <span id="fps">FPS: </span>
+    </div>
+
+    <!-- 可视域属性编辑弹窗 -->
+    <div id="viewshedPropertyModal" class="viewshed-property-modal">
+        <div class="property-editor-dialog">
+            <div class="property-editor-header">
+                <h3 class="property-editor-title">可视域分析属性</h3>
+                <button class="property-editor-close" onclick="closeViewshedPropertyEditor()">&times;</button>
+            </div>
+            <div class="property-editor-content">
+                <!-- 观察点属性 -->
+                <div class="property-group">
+                    <div class="property-group-title">观察点属性</div>
+                    <div class="property-item">
+                        <label class="property-label">方向角 (°)</label>
+                        <div class="property-range">
+                            <input type="range" id="modal-direction" min="0" max="360" value="0" step="1">
+                            <span class="range-value" id="modal-direction-value">0°</span>
+                        </div>
+                    </div>
+                    <div class="property-item">
+                        <label class="property-label">俯仰角 (°)</label>
+                        <div class="property-range">
+                            <input type="range" id="modal-pitch" min="-90" max="90" value="0" step="1">
+                            <span class="range-value" id="modal-pitch-value">0°</span>
+                        </div>
+                    </div>
+                    <div class="property-item">
+                        <label class="property-label">观察距离 (m)</label>
+                        <div class="property-range">
+                            <input type="range" id="modal-distance" min="100" max="10000" value="1000" step="50">
+                            <span class="range-value" id="modal-distance-value">1000m</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 视场角属性 -->
+                <div class="property-group">
+                    <div class="property-group-title">视场角属性</div>
+                    <div class="property-item">
+                        <label class="property-label">水平视场角 (°)</label>
+                        <div class="property-range">
+                            <input type="range" id="modal-horizontal-fov" min="1" max="180" value="90" step="1">
+                            <span class="range-value" id="modal-horizontal-fov-value">90°</span>
+                        </div>
+                    </div>
+                    <div class="property-item">
+                        <label class="property-label">垂直视场角 (°)</label>
+                        <div class="property-range">
+                            <input type="range" id="modal-vertical-fov" min="1" max="180" value="60" step="1">
+                            <span class="range-value" id="modal-vertical-fov-value">60°</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 颜色设置 -->
+                <div class="property-group">
+                    <div class="property-group-title">颜色设置</div>
+                    <div class="property-item">
+                        <label class="property-label">可见区域颜色</label>
+                        <div class="color-picker-container">
+                            <input type="color" id="modal-visible-color" class="color-picker" value="#00ff00">
+                            <span class="property-label">绿色区域表示可见</span>
+                        </div>
+                    </div>
+                    <div class="property-item">
+                        <label class="property-label">不可见区域颜色</label>
+                        <div class="color-picker-container">
+                            <input type="color" id="modal-invisible-color" class="color-picker" value="#ff0000">
+                            <span class="property-label">红色区域表示不可见</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 裁剪模式 -->
+                <div class="property-group">
+                    <div class="property-group-title">裁剪模式</div>
+                    <div class="property-item">
+                        <label class="property-label">选择裁剪方式</label>
+                        <div class="clip-mode-selector">
+                            <div class="clip-mode-option active" data-mode="keep-inside" onclick="selectClipMode('keep-inside')">
+                                保留区域内
+                            </div>
+                            <div class="clip-mode-option" data-mode="keep-outside" onclick="selectClipMode('keep-outside')">
+                                保留区域外
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="property-actions">
+                <button class="property-btn property-btn-secondary" onclick="resetViewshedProperties()">重置</button>
+                <button class="property-btn property-btn-primary" onclick="applyViewshedProperties()">应用</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入ECharts库 -->
+    <script src="https://unpkg.com/echarts@5.4.3/dist/echarts.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js'"></script>
+    
+    <!-- 引入配置文件 -->
+    <script src="js/config.js"></script>
+    
+    <!-- 引入功能模块 -->
+    <script src="js/indoor-navigation.js"></script>
+    <script src="js/interactive-analysis-manager.js"></script>
+    <script src="js/digital-twin-analysis.js"></script>
+    
+    <!-- 智能对话框 -->
+    <div id="aiChatContainer" class="ai-chat-container">
+        <div id="aiChatHeader" class="ai-chat-header">
+            <div class="ai-chat-title">
+                <span class="ai-icon">🤖</span>
+                <span>智能分析助手</span>
+            </div>
+            <div class="ai-chat-controls">
+                <button id="minimizeChat" class="minimize-btn" title="最小化">_</button>
+                <button id="closeChat" class="close-btn" title="关闭">&times;</button>
+            </div>
+        </div>
+        <div id="aiChatMessages" class="ai-chat-messages"></div>
+        <div id="aiChatInput" class="ai-chat-input">
+            <textarea id="aiChatTextarea" placeholder="输入您的分析指令..." rows="1"></textarea>
+            <button id="aiChatSend" title="发送">➤</button>
+        </div>
+        <div id="aiChatStatus" class="ai-chat-status">正在连接...</div>
+    </div>
+
+    <!-- 引入MCP客户端 -->
+    <script src="js/mcp-client.js"></script>
+    
+    <!-- 引入智能对话框 -->
+    <script src="js/ai-chat.js"></script>
+    
+    <!-- 引入主程序 -->
+    <script src="js/main.js"></script>
+</body>
+</html>
