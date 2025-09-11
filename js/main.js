@@ -44,19 +44,8 @@ class RealityTwin3DAnalysisTool {
      */
     initMCPClient() {
         try {
-            // 创建MCP客户端实例
-            const mcpConfig = {
-                serverUrl: 'wss://api.ppinfra.com/mcp',
-                apiKey: 'sk_WSKTtf828WzEkHg1PCzpkt6k8xmo_ESnNC5RNfdF4rk',
-                clientId: 'RealityTwin3DAnalysisTool',
-                modelConfig: {
-                    baseUrl: 'https://api.ppinfra.com/openai',
-                    apiKey: 'sk_WSKTtf828WzEkHg1PCzpkt6k8xmo_ESnNC5RNfdF4rk',
-                    model: 'qwen/qwen3-235b-a22b-instruct-2507',
-                    stream: true,
-                    maxTokens: 1000
-                }
-            };
+            // 创建MCP客户端实例，使用config.js中的配置
+            const mcpConfig = MCP_CONFIG;
             
             window.mcpClient = new MCPClient(mcpConfig);
             console.log('✅ MCP客户端初始化成功');

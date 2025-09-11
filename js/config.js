@@ -206,6 +206,20 @@ const UI_CONFIG = {
     ANIMATION_DURATION: 300
 };
 
+// MCP客户端配置
+const MCP_CONFIG = {
+    serverUrl: 'wss://api.ppinfra.com/mcp', // wss://api.ppinfra.com/mcp
+    apiKey: '',
+    clientId: 'RealityTwin3DAnalysisTool',
+    modelConfig: {
+        baseUrl: 'https://api.ppinfra.com/openai',
+        apiKey: 'sk_WSKTtf828WzEkHg1PCzpkt6k8xmo_ESnNC5RNfdF4rk',
+        model: 'qwen/qwen3-235b-a22b-instruct-2507',
+        stream: true,
+        maxTokens: 1000
+    }
+};
+
 /**
  * 获取引擎类型
  * @returns {number} 引擎类型 (2: WebGL2, 3: WebGPU)
@@ -276,6 +290,7 @@ if (typeof module !== 'undefined' && module.exports) {
         NAVIGATION_CONFIG,
         EFFECT_CONFIG,
         UI_CONFIG,
+        MCP_CONFIG,
         getEngineType,
         checkBrowserCompatibility,
         initializeConfig
