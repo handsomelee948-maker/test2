@@ -15,6 +15,11 @@ class IndoorNavigation {
         this.floorHeight = NAVIGATION_CONFIG.FLOOR_HEIGHT;
         this.cameraHeight = NAVIGATION_CONFIG.CAMERA_HEIGHT;
         
+        // 新增：多点路径相关属性
+        this.isSelectingPoints = false; // 是否正在选择路径点
+        this.routeMarkers = []; // 存储所有路径标记
+        this.routeSegments = []; // 存储路径分段
+        
         this.init();
     }
 
@@ -45,45 +50,120 @@ class IndoorNavigation {
         // 键盘控制
         document.addEventListener('keydown', (event) => this.onKeyDown(event));
         document.addEventListener('keyup', (event) => this.onKeyUp(event));
+        
+        // 新增：鼠标右键事件绑定
+        document.addEventListener('contextmenu', (event) => this.onRightClick(event));
     }
 
     /**
-     * 设置路径点
-     * @param {SuperMap3D.Cartesian3} position 位置
+     * 开始多点路径选择模式
      */
-    addRoutePoint(position) {
-        this.routePoints.push(position);
-        
-        // 在场景中添加标记
-        this.addRouteMarker(position, this.routePoints.length);
-        
-        // 如果有两个点，计算路径
-        if (this.routePoints.length === 2) {
-            this.calculateRoute();
+    startMultiPointSelection() {
+        this.isSelectingPoints = true;
+        this.clearRoute(); // 清除之前的路径
+        console.log('多点路径选择模式已启动，左键选择路径点，右键结束选择');
+    }
+
+    /**
+     * 结束多点路径选择模式
+     */
+    endMultiPointSelection() {
+        if (this.routePoints.length >= 2) {
+            // 保存当前完整的相机状态
+            const currentCamera = {
+                position: this.viewer.camera.position.clone(),
+                direction: this.viewer.camera.direction.clone(),
+                up: this.viewer.camera.up.clone(),
+                right: this.viewer.camera.right.clone(),
+                transform: this.viewer.camera.transform.clone()
+            };
+            
+            // 强制退出设置路径模式
+            this.isSelectingPoints = false;
+            
+            // 移除之前的终点标记（如果有）
+            if (this.endMarker) {
+                this.viewer.entities.remove(this.endMarker);
+                this.endMarker = null;
+            }
+            
+            // 添加终点标记（最后一个点）
+            const lastPoint = this.routePoints[this.routePoints.length - 1];
+            this.addRouteMarker(lastPoint, 'end');
+            
+            this.calculateMultiPointRoute();
+            
+            // 立即恢复相机状态，避免任何视角跳转
+            this.viewer.camera.setView({
+                destination: currentCamera.position,
+                orientation: {
+                    direction: currentCamera.direction,
+                    up: currentCamera.up
+                }
+            });
+            
+            console.log(`✅ 多点路径选择结束，共选择 ${this.routePoints.length} 个路径点，已退出设置路径模式，相机状态已恢复`);
+        } else {
+            console.warn('路径点不足，至少需要选择2个点');
+            this.isSelectingPoints = false; // 即使点不足也退出设置模式
         }
     }
 
     /**
-     * 添加路径标记
+     * 设置路径点（支持多点）
      * @param {SuperMap3D.Cartesian3} position 位置
-     * @param {number} index 索引
      */
-    addRouteMarker(position, index) {
+    addRoutePoint(position) {
+        if (!this.isSelectingPoints) {
+            // 如果不是多点选择模式，清除之前的路径点
+            this.clearRoute();
+            this.isSelectingPoints = true;
+        }
+        
+        this.routePoints.push(position);
+        
+        // 第一个点显示为起点（有注记）
+        if (this.routePoints.length === 1) {
+            this.addRouteMarker(position, 'start');
+        } 
+        // 第二个及之后的点显示标记但没有注记
+        else if (this.routePoints.length >= 2) {
+            this.addIntermediateMarker(position, this.routePoints.length);
+        }
+        
+        console.log(`已添加第 ${this.routePoints.length} 个路径点`);
+    }
+
+    /**
+     * 添加路径标记（支持多点）
+     * @param {SuperMap3D.Cartesian3} position 位置
+     * @param {string} type 标记类型（'start'或'end'）
+     */
+    addRouteMarker(position, type) {
         const entities = this.viewer.entities;
         
+        let markerColor, markerText;
+        if (type === 'start') {
+            markerColor = SuperMap3D.Color.GREEN;
+            markerText = '起点';
+        } else if (type === 'end') {
+            markerColor = SuperMap3D.Color.RED;
+            markerText = '终点';
+        }
+        
         const marker = entities.add({
-            name: index === 1 ? 'Start Point' : 'End Point',
+            name: `${type} Point`,
             position: position,
             point: {
                 pixelSize: 10,
-                color: index === 1 ? SuperMap3D.Color.GREEN : SuperMap3D.Color.RED,
+                color: markerColor,
                 outlineColor: SuperMap3D.Color.WHITE,
                 outlineWidth: 2,
                 heightReference: SuperMap3D.HeightReference.CLAMP_TO_GROUND
             },
             label: {
-                text: index === 1 ? '起点' : '终点',
-                font: '14pt sans-serif',
+                text: markerText,
+                font: '12pt sans-serif',
                 fillColor: SuperMap3D.Color.WHITE,
                 outlineColor: SuperMap3D.Color.BLACK,
                 outlineWidth: 2,
@@ -92,21 +172,206 @@ class IndoorNavigation {
             }
         });
         
-        // 存储标记引用以便后续清除
-        if (index === 1) {
-            // 清除之前的起点标记
-            if (this.startMarker) {
-                this.viewer.entities.remove(this.startMarker);
-            }
+        // 存储标记引用
+        if (type === 'start') {
             this.startMarker = marker;
-        } else {
-            // 清除之前的终点标记
-            if (this.endMarker) {
-                this.viewer.entities.remove(this.endMarker);
-            }
+        } else if (type === 'end') {
             this.endMarker = marker;
         }
     }
+
+    /**
+     * 添加中间点标记（没有注记）
+     * @param {SuperMap3D.Cartesian3} position 位置
+     * @param {number} index 索引
+     */
+    addIntermediateMarker(position, index) {
+        const entities = this.viewer.entities;
+        
+        const marker = entities.add({
+            name: `Intermediate Point ${index}`,
+            position: position,
+            point: {
+                pixelSize: 8,
+                color: SuperMap3D.Color.YELLOW,
+                outlineColor: SuperMap3D.Color.WHITE,
+                outlineWidth: 1,
+                heightReference: SuperMap3D.HeightReference.CLAMP_TO_GROUND
+            }
+        });
+        
+        // 存储中间点标记引用
+        if (!this.intermediateMarkers) {
+            this.intermediateMarkers = [];
+        }
+        this.intermediateMarkers.push(marker);
+    }
+
+    /**
+     * 鼠标右键点击事件
+     * @param {MouseEvent} event 鼠标事件
+     */
+    onRightClick(event) {
+        event.preventDefault(); // 阻止默认右键菜单
+        
+        if (this.isSelectingPoints) {
+            this.endMultiPointSelection();
+        }
+    }
+
+    /**
+     * 计算多点路径
+     */
+    calculateMultiPointRoute() {
+        if (this.routePoints.length < 2) {
+            console.warn('路径点不足，无法计算路径');
+            return;
+        }
+
+        try {
+            // 保存当前完整的相机状态
+            const currentCamera = {
+                position: this.viewer.camera.position.clone(),
+                direction: this.viewer.camera.direction.clone(),
+                up: this.viewer.camera.up.clone(),
+                right: this.viewer.camera.right.clone(),
+                transform: this.viewer.camera.transform.clone()
+            };
+
+            // 生成多点路径
+            const route = this.generateMultiPointRoute(this.routePoints);
+            
+            // 绘制完整路径
+            this.drawRoute(route);
+            
+            // 立即恢复相机状态，避免任何视角跳转
+            this.viewer.camera.setView({
+                destination: currentCamera.position,
+                orientation: {
+                    direction: currentCamera.direction,
+                    up: currentCamera.up
+                }
+            });
+            
+            console.log('✅ 多点路径计算完成，相机状态已恢复');
+        } catch (error) {
+            console.error('❌ 多点路径计算失败:', error);
+        }
+    }
+
+    /**
+     * 生成多点路径
+     * @param {Array} points 路径点数组
+     * @returns {Array} 完整路径点数组
+     */
+    generateMultiPointRoute(points) {
+        if (points.length < 2) {
+            return [];
+        }
+        
+        const fullRoute = [];
+        
+        // 连接所有相邻点
+        for (let i = 0; i < points.length - 1; i++) {
+            const segment = this.generateSimpleRoute(points[i], points[i + 1]);
+            
+            // 如果是第一个段，添加所有点；否则跳过第一个点（避免重复）
+            if (i === 0) {
+                fullRoute.push(...segment);
+            } else {
+                fullRoute.push(...segment.slice(1));
+            }
+        }
+        
+        return fullRoute;
+    }
+
+    /**
+     * 绘制已连接的路径段（实时预览）
+     */
+    drawConnectedSegments() {
+        // 清除之前的预览路径
+        this.routeSegments.forEach(segment => {
+            if (segment) {
+                this.viewer.entities.remove(segment);
+            }
+        });
+        this.routeSegments = [];
+        
+        // 绘制所有已连接的段
+        for (let i = 0; i < this.routePoints.length - 1; i++) {
+            const segment = this.generateSimpleRoute(this.routePoints[i], this.routePoints[i + 1]);
+            
+            const polyline = this.viewer.entities.add({
+                name: `Route Segment ${i+1}`,
+                polyline: {
+                    positions: segment,
+                    width: 2,
+                    material: SuperMap3D.Color.CYAN.withAlpha(0.6),
+                    clampToGround: false,
+                    heightReference: SuperMap3D.HeightReference.NONE,
+                    show: true,
+                    followSurface: false
+                }
+            });
+            
+            this.routeSegments.push(polyline);
+        }
+    }
+
+    /**
+     * 清除路径
+     */
+    clearRoute() {
+        // 清除路径点
+        this.routePoints = [];
+        
+        // 清除起点标记
+        if (this.startMarker) {
+            this.viewer.entities.remove(this.startMarker);
+            this.startMarker = null;
+        }
+        
+        // 清除终点标记
+        if (this.endMarker) {
+            this.viewer.entities.remove(this.endMarker);
+            this.endMarker = null;
+        }
+        
+        // 清除中间点标记
+        if (this.intermediateMarkers) {
+            this.intermediateMarkers.forEach(marker => {
+                if (marker) {
+                    this.viewer.entities.remove(marker);
+                }
+            });
+            this.intermediateMarkers = [];
+        }
+        
+        // 清除路径线
+        if (this.routePolyline) {
+            this.viewer.entities.remove(this.routePolyline);
+            this.routePolyline = null;
+        }
+        
+        // 清除路径段（确保routeSegments数组已初始化）
+        if (!this.routeSegments) {
+            this.routeSegments = [];
+        }
+        this.routeSegments.forEach(segment => {
+            if (segment) {
+                this.viewer.entities.remove(segment);
+            }
+        });
+        this.routeSegments = [];
+        
+        this.isSelectingPoints = false;
+        console.log('✅ 路径已清除');
+    }
+
+
+
+
 
     /**
      * 计算路径
@@ -118,21 +383,16 @@ class IndoorNavigation {
         }
 
         try {
-            const startPoint = this.routePoints[0];
-            const endPoint = this.routePoints[1];
-
-            console.log('🧮 开始计算路径...');
-            console.log('起点:', startPoint);
-            console.log('终点:', endPoint);
+            // 开始计算路径
 
             // 保存当前相机状态
             const currentCameraPosition = this.viewer.camera.position.clone();
             const currentCameraDirection = this.viewer.camera.direction.clone();
             const currentCameraUp = this.viewer.camera.up.clone();
-            console.log('📸 已保存当前相机状态');
+            // 已保存当前相机状态
 
-            // 简单的直线路径（实际项目中可以接入路径规划算法）
-            const route = this.generateSimpleRoute(startPoint, endPoint);
+            // 生成多点路径（支持多个路径点的分段连接）
+            const route = this.generateMultiPointRoute(this.routePoints);
             
             // 绘制路径
             this.drawRoute(route);
@@ -144,10 +404,11 @@ class IndoorNavigation {
                     direction: currentCameraDirection,
                     up: currentCameraUp
                 });
-                console.log('📸 相机状态已恢复');
+                // 相机状态已恢复
             }, 100);
             
-            console.log('✅ 路径计算完成，路径点数:', route.length);
+            // 路径计算完成
+            console.log(`✅ 多点路径计算完成，共${this.routePoints.length}个路径点`);
         } catch (error) {
             console.error('❌ 路径计算失败:', error);
             throw error;
@@ -174,19 +435,48 @@ class IndoorNavigation {
     }
 
     /**
+     * 生成多点路径（支持多个路径点的分段连接）
+     * @param {Array} points 路径点数组
+     * @returns {Array} 完整的路径点数组
+     */
+    generateMultiPointRoute(points) {
+        if (!points || points.length < 2) {
+            console.warn('路径点不足，无法生成多点路径');
+            return [];
+        }
+
+        const fullRoute = [];
+        
+        // 连接所有路径点
+        for (let i = 0; i < points.length - 1; i++) {
+            const startPoint = points[i];
+            const endPoint = points[i + 1];
+            
+            // 生成当前段的路径
+            const segmentRoute = this.generateSimpleRoute(startPoint, endPoint);
+            
+            // 如果是第一段，添加所有点；否则跳过第一个点（避免重复）
+            if (i === 0) {
+                fullRoute.push(...segmentRoute);
+            } else {
+                fullRoute.push(...segmentRoute.slice(1));
+            }
+        }
+        
+        console.log(`✅ 多点路径生成完成，共${points.length}个路径点，生成${fullRoute.length}个路径细分点`);
+        return fullRoute;
+    }
+
+    /**
      * 绘制路径
      * @param {Array} route 路径点数组
      */
     drawRoute(route) {
         try {
-            console.log('🎨 开始绘制路径...');
+            // 开始绘制路径
             
             // 移除之前的路径
-            if (this.routePolyline) {
-                this.viewer.entities.remove(this.routePolyline);
-                this.routePolyline = null;
-                console.log('🗑️ 已移除之前的路径');
-            }
+            this.clearRoutePolylines();
 
             // 验证路径点
             if (!route || route.length < 2) {
@@ -208,25 +498,23 @@ class IndoorNavigation {
                 return;
             }
 
-            console.log(`✅ 有效路径点数: ${validRoute.length}`);
-
-            // 绘制新路径（使用更保守的设置，避免影响模型显示）
+            // 绘制统一的主路径（不分段，统一颜色）
             this.routePolyline = this.viewer.entities.add({
                 name: 'Navigation Route',
                 polyline: {
                     positions: validRoute,
-                    width: 3,
-                    material: SuperMap3D.Color.CYAN.withAlpha(0.8),
+                    width: 4,
+                    material: SuperMap3D.Color.CYAN.withAlpha(0.9),
                     clampToGround: false,
                     heightReference: SuperMap3D.HeightReference.NONE,
                     extrudedHeight: 0,
                     show: true,
                     followSurface: false,
-                    depthFailMaterial: SuperMap3D.Color.CYAN.withAlpha(0.5)
+                    depthFailMaterial: SuperMap3D.Color.CYAN.withAlpha(0.7)
                 }
             });
 
-            console.log('✅ 路径绘制完成');
+            console.log(`✅ 路径绘制完成，共${validRoute.length}个路径点`);
             
         } catch (error) {
             console.error('❌ 绘制路径失败:', error);
@@ -234,14 +522,46 @@ class IndoorNavigation {
         }
     }
 
+
+                    
+
+
     /**
-     * 添加路径标记
+     * 清除路径线段
+     */
+    clearRoutePolylines() {
+        try {
+            // 清除主路径
+            if (this.routePolyline) {
+                this.viewer.entities.remove(this.routePolyline);
+                this.routePolyline = null;
+            }
+            
+            // 清除分段路径
+            if (this.routeSegmentPolylines) {
+                this.routeSegmentPolylines.forEach(polyline => {
+                    this.viewer.entities.remove(polyline);
+                });
+                this.routeSegmentPolylines = [];
+            }
+            
+            console.log('✅ 路径线段已清除');
+        } catch (error) {
+            console.error('❌ 清除路径线段失败:', error);
+        }
+    }
+
+    /**
+     * 添加路径标记（只添加起点和终点）
      */
     addRouteMarkers(routePoints) {
         try {
             if (!routePoints || routePoints.length < 2) {
                 return;
             }
+            
+            // 清除之前的标记
+            this.clearRouteMarkers();
             
             // 添加起点标记
             this.startMarker = this.viewer.entities.add({
@@ -287,9 +607,32 @@ class IndoorNavigation {
                 }
             });
             
-            console.log('✅ 路径标记已添加');
+            console.log(`✅ 路径标记添加完成（起点和终点）`);
         } catch (error) {
             console.error('❌ 添加路径标记失败:', error);
+        }
+    }
+
+    /**
+     * 清除路径标记
+     */
+    clearRouteMarkers() {
+        try {
+            // 清除起点标记
+            if (this.startMarker) {
+                this.viewer.entities.remove(this.startMarker);
+                this.startMarker = null;
+            }
+            
+            // 清除终点标记
+            if (this.endMarker) {
+                this.viewer.entities.remove(this.endMarker);
+                this.endMarker = null;
+            }
+            
+            console.log('✅ 路径标记已清除');
+        } catch (error) {
+            console.error('❌ 清除路径标记失败:', error);
         }
     }
 
@@ -326,7 +669,8 @@ class IndoorNavigation {
         }
 
         this.isNavigating = true;
-        const route = this.generateSimpleRoute(this.routePoints[0], this.routePoints[1]);
+        // 生成完整的多点路径，而不是仅第一个点到第二个点
+        const route = this.generateMultiPointRoute(this.routePoints);
         this.performWalkthrough(route);
     }
 
@@ -343,7 +687,7 @@ class IndoorNavigation {
         const camera = this.viewer.camera;
         this.isNavigating = true;
         
-        console.log('🚶 开始第一视角漫游，路径点数:', route.length);
+        // 开始第一视角漫游
         
         // 计算总距离用于显示
         let totalDistance = 0;
@@ -353,8 +697,8 @@ class IndoorNavigation {
         }
         
         // 固定漫游时间为5秒，提供最佳的第一人称体验
-        const totalTime = 5;
-        console.log(`📏 总距离: ${totalDistance.toFixed(2)}m, 漫游时间: ${totalTime}秒`);
+        const totalTime = 15;
+        // 计算漫游参数
         
         // 设置起点第一视角
         this.setFirstPersonViewAtPosition(route[0]);
@@ -370,18 +714,52 @@ class IndoorNavigation {
     setFirstPersonViewAtPosition(position) {
         const camera = this.viewer.camera;
         
-        // 调整相机到人眼高度
-        const adjustedPosition = SuperMap3D.Cartesian3.clone(position);
-        adjustedPosition.z += this.cameraHeight;
+        // 调整相机到人眼高度 - 使用更安全的方式
+        const adjustedPosition = new SuperMap3D.Cartesian3(
+            position.x,
+            position.y,
+            position.z + this.cameraHeight
+        );
         
-        // 计算沿路径的前进方向
-        let forwardDirection = new SuperMap3D.Cartesian3(1, 0, 0); // 默认朝向
-        if (this.routePoints.length >= 2) {
-            // 如果是起点，朝向第一段路径方向
+        // 计算看向下一个点的方向
+        let lookDirection = new SuperMap3D.Cartesian3(1, 0, 0); // 默认朝向
+        if (this.routePoints && this.routePoints.length >= 2) {
+            // 如果是起点，看向第二个点
             const start = this.routePoints[0];
             const next = this.routePoints[1];
-            forwardDirection = SuperMap3D.Cartesian3.subtract(next, start, new SuperMap3D.Cartesian3());
-            SuperMap3D.Cartesian3.normalize(forwardDirection, forwardDirection);
+            lookDirection = SuperMap3D.Cartesian3.subtract(next, start, new SuperMap3D.Cartesian3());
+            SuperMap3D.Cartesian3.normalize(lookDirection, lookDirection);
+        }
+        
+        // 确保方向向量有效，避免零向量
+        if (SuperMap3D.Cartesian3.magnitude(lookDirection) < 0.001) {
+            lookDirection = new SuperMap3D.Cartesian3(1, 0, 0);
+        }
+        
+        // 确保第一人称行走视角直立行走，基于地面法向量计算
+        let upVector = new SuperMap3D.Cartesian3(0, 0, 1); // 默认上向量
+        
+        // 使用路径段计算地面法向量，确保视角垂直于地面
+        if (this.routePoints && this.routePoints.length >= 2) {
+            const groundNormal = this.calculateGroundNormal(adjustedPosition, this.routePoints, 0);
+            upVector = groundNormal;
+        }
+        
+        // 确保上向量与前进方向垂直（避免视角倾斜）
+        const dot = SuperMap3D.Cartesian3.dot(lookDirection, upVector);
+        console.log(`[setFirstPersonViewAtPosition] 前进方向与上向量点积:${dot.toFixed(4)}, 阈值:0.1`);
+        
+        if (Math.abs(dot) > 0.1) { // 放宽阈值，避免过度修正
+            console.log(`[setFirstPersonViewAtPosition] 需要修正上向量，当前点积:${dot.toFixed(4)}`);
+            // 如果前进方向与上向量不垂直，计算正确的上向量
+            const rightVector = SuperMap3D.Cartesian3.cross(lookDirection, upVector, new SuperMap3D.Cartesian3());
+            SuperMap3D.Cartesian3.normalize(rightVector, rightVector);
+            
+            // 重新计算与前进方向和右向量都垂直的上向量
+            upVector = SuperMap3D.Cartesian3.cross(rightVector, lookDirection, new SuperMap3D.Cartesian3());
+            SuperMap3D.Cartesian3.normalize(upVector, upVector);
+            
+            console.log(`[setFirstPersonViewAtPosition] 修正后的上向量:(${upVector.x.toFixed(3)}, ${upVector.y.toFixed(3)}, ${upVector.z.toFixed(3)})`);
         }
         
         // 禁用相机控制，确保第一视角体验
@@ -389,16 +767,17 @@ class IndoorNavigation {
         this.scene.screenSpaceCameraController.enableTranslate = false;
         this.scene.screenSpaceCameraController.enableZoom = false;
         
-        camera.setView({
+        camera.flyTo({
             destination: adjustedPosition,
             orientation: {
-                direction: forwardDirection,
-                up: SuperMap3D.Cartesian3.UNIT_Z
+                direction: lookDirection,
+                up: upVector // 动态计算的上向量，确保视角水平
             },
-            duration: 1.0 // 平滑过渡到第一视角
+            duration: 1.0, // 平滑过渡
+            maximumHeight: 5000 // 限制最大高度
         });
         
-        console.log('👁️ 已设置第一视角，朝向路径方向，相机控制已禁用');
+        // 已设置第一视角
     }
     
     /**
@@ -412,7 +791,15 @@ class IndoorNavigation {
         const stepTime = 50; // 50ms更新一次
         const totalSteps = Math.floor(totalTime * 1000 / stepTime);
         
-        console.log('🎬 开始第一视角漫游动画，总时间:', totalTime, '秒，总步数:', totalSteps);
+        // 保存漫游开始前的相机位置和方向，用于恢复
+        const originalPosition = camera.position.clone();
+        const originalOrientation = {
+            heading: camera.heading,
+            pitch: camera.pitch,
+            roll: camera.roll
+        };
+        
+        // 开始第一视角漫游动画
         
         const walkInterval = setInterval(() => {
             if (!this.isNavigating) {
@@ -427,55 +814,111 @@ class IndoorNavigation {
                 // 漫游完成
                 clearInterval(walkInterval);
                 this.isNavigating = false;
-                console.log('✅ 第一视角漫游完成');
                 
-                // 设置终点视角并恢复相机控制
+                // 设置终点视角并平滑恢复到原始位置
                 this.setFirstPersonViewAtPosition(route[route.length - 1]);
                 setTimeout(() => {
-                    this.restoreCameraControls();
-                    console.log('🎮 相机控制已恢复');
-                }, 2000); // 2秒后恢复控制
+                    // 平滑飞回原始位置
+                    camera.flyTo({
+                        destination: originalPosition,
+                        orientation: originalOrientation,
+                        duration: 2.0,
+                        maximumHeight: 5000
+                    });
+                    
+                    // 飞行完成后恢复相机控制
+                    setTimeout(() => {
+                        this.restoreCameraControls();
+                    }, 2000);
+                }, 1000);
                 return;
             }
             
-            // 计算当前位置和前进方向
+            // 计算当前位置
             const currentPosition = this.interpolateRoutePosition(route, progress);
-            const nextProgress = Math.min(progress + 0.01, 1); // 稍微向前看一点
-            const nextPosition = this.interpolateRoutePosition(route, nextProgress);
             
-            // 调整相机高度
-            const adjustedPosition = SuperMap3D.Cartesian3.clone(currentPosition);
-            adjustedPosition.z += this.cameraHeight;
+            // 计算当前所在的路径段和下一个目标点
+            const currentSegment = this.getCurrentPathSegment(route, progress);
+            const targetPoint = route[currentSegment.targetIndex];
             
-            // 计算前进方向（沿路径方向）
-            const forwardDirection = SuperMap3D.Cartesian3.subtract(nextPosition, currentPosition, new SuperMap3D.Cartesian3());
+            // 确保相机位置在路径中心线上
+            // 对于第一人称漫游，相机位置应该直接位于路径点上，不需要偏移
+            // 使用精确的路径插值位置，确保相机在路径中心
+            const adjustedPosition = new SuperMap3D.Cartesian3(
+                currentPosition.x,
+                currentPosition.y,
+                currentPosition.z + this.cameraHeight
+            );
             
-            // 如果方向向量太小，使用路径的整体方向
-            if (SuperMap3D.Cartesian3.magnitude(forwardDirection) < 0.001) {
-                const startPos = route[0];
-                const endPos = route[route.length - 1];
-                SuperMap3D.Cartesian3.subtract(endPos, startPos, forwardDirection);
+            console.log(`[漫游位置] 段${currentSegment.segmentIndex}, 位置:(${adjustedPosition.x.toFixed(3)}, ${adjustedPosition.y.toFixed(3)}, ${adjustedPosition.z.toFixed(3)})`);
+            
+            // 计算前进方向（从当前位置看向目标点）
+            const lookDirection = SuperMap3D.Cartesian3.subtract(targetPoint, currentPosition, new SuperMap3D.Cartesian3());
+            
+            // 如果方向向量太小，使用当前路径段的方向
+            if (SuperMap3D.Cartesian3.magnitude(lookDirection) < 0.001) {
+                // 使用当前路径段的方向，确保方向稳定
+                if (currentSegment.segmentIndex < route.length - 1) {
+                    const segmentStart = route[currentSegment.segmentIndex];
+                    const segmentEnd = route[currentSegment.segmentIndex + 1];
+                    SuperMap3D.Cartesian3.subtract(segmentEnd, segmentStart, lookDirection);
+                } else {
+                    // 如果已经是最后一段，使用整体路径方向
+                    const startPos = route[0];
+                    const endPos = route[route.length - 1];
+                    SuperMap3D.Cartesian3.subtract(endPos, startPos, lookDirection);
+                }
             }
             
             // 标准化方向向量
-            SuperMap3D.Cartesian3.normalize(forwardDirection, forwardDirection);
+            SuperMap3D.Cartesian3.normalize(lookDirection, lookDirection);
             
-            // 计算相机朝向，使用lookAt方式确保能看到前方路径
-            const lookAtPosition = SuperMap3D.Cartesian3.add(adjustedPosition, 
-                SuperMap3D.Cartesian3.multiplyByScalar(forwardDirection, 10, new SuperMap3D.Cartesian3()), 
-                new SuperMap3D.Cartesian3());
+            // 确保第一人称行走视角直立行走，基于地面法向量计算
+            let upVector = new SuperMap3D.Cartesian3(0, 0, 1); // 默认上向量
             
-            // 设置稍微向下的俯仰角，但不要太大，确保能看到前方路径
-            const pitch = SuperMap3D.Math.toRadians(-5); // 向下看5度，减少俯仰角
+            // 使用路径段计算地面法向量，确保视角垂直于地面
+            if (route && route.length >= 2 && currentSegment.segmentIndex >= 0) {
+                const groundNormal = this.calculateGroundNormal(currentPosition, route, currentSegment.segmentIndex);
+                upVector = groundNormal;
+                console.log(`[漫游视角] 段${currentSegment.segmentIndex}使用地面法向量作为上向量:(${upVector.x.toFixed(3)}, ${upVector.y.toFixed(3)}, ${upVector.z.toFixed(3)})`);
+                
+                // 添加路径段信息
+                if (currentSegment.segmentIndex < route.length - 1) {
+                    const currentPoint = route[currentSegment.segmentIndex];
+                    const nextPoint = route[currentSegment.segmentIndex + 1];
+                    const segmentDirection = SuperMap3D.Cartesian3.subtract(nextPoint, currentPoint, new SuperMap3D.Cartesian3());
+                    const segmentLength = SuperMap3D.Cartesian3.magnitude(segmentDirection);
+                    if (segmentLength > 0) {
+                        SuperMap3D.Cartesian3.normalize(segmentDirection, segmentDirection);
+                    }
+                    console.log(`[漫游视角] 当前段${currentSegment.segmentIndex}方向:(${segmentDirection.x.toFixed(3)}, ${segmentDirection.y.toFixed(3)}, ${segmentDirection.z.toFixed(3)}), 长度:${segmentLength.toFixed(3)}`);
+                }
+            } else {
+                console.log(`[漫游视角] 使用默认上向量:(${upVector.x.toFixed(3)}, ${upVector.y.toFixed(3)}, ${upVector.z.toFixed(3)})`);
+            }
             
-            console.log('🚶 漫游进度:', (progress * 100).toFixed(1) + '%', '前进方向:', forwardDirection);
+            // 确保上向量与前进方向垂直（避免视角倾斜）
+            const dot = SuperMap3D.Cartesian3.dot(lookDirection, upVector);
+            console.log(`[漫游视角] 前进方向与上向量点积:${dot.toFixed(4)}, 阈值:0.1`);
             
-            // 使用lookAt方式设置相机，确保能看到前方路径
+            if (Math.abs(dot) > 0.1) { // 放宽阈值，避免过度修正
+                console.log(`[漫游视角] 需要修正上向量，当前点积:${dot.toFixed(4)}`);
+                // 如果前进方向与上向量不垂直，计算正确的上向量
+                const rightVector = SuperMap3D.Cartesian3.cross(lookDirection, upVector, new SuperMap3D.Cartesian3());
+                SuperMap3D.Cartesian3.normalize(rightVector, rightVector);
+                
+                // 重新计算与前进方向和右向量都垂直的上向量
+                upVector = SuperMap3D.Cartesian3.cross(rightVector, lookDirection, new SuperMap3D.Cartesian3());
+                SuperMap3D.Cartesian3.normalize(upVector, upVector);
+                
+                console.log(`[漫游视角] 修正后的上向量:(${upVector.x.toFixed(3)}, ${upVector.y.toFixed(3)}, ${upVector.z.toFixed(3)})`);
+            }
+            
             camera.setView({
                 destination: adjustedPosition,
                 orientation: {
-                    direction: forwardDirection,
-                    up: SuperMap3D.Cartesian3.UNIT_Z
+                    direction: lookDirection,
+                    up: upVector // 动态计算的上向量，确保视角水平
                 }
             });
             
@@ -483,6 +926,78 @@ class IndoorNavigation {
         
         // 保存interval引用，用于停止漫游
         this.walkthroughInterval = walkInterval;
+    }
+    
+    /**
+     * 获取当前所在的路径段和下一个目标点
+     * @param {Array} route 路径点数组
+     * @param {Number} progress 进度 (0-1)
+     * @returns {Object} 包含当前段索引和目标点索引的对象
+     */
+    getCurrentPathSegment(route, progress) {
+        if (progress <= 0) {
+            return { segmentIndex: 0, targetIndex: 1 }; // 起点，看向第二个点
+        }
+        if (progress >= 1) {
+            return { segmentIndex: route.length - 2, targetIndex: route.length - 1 }; // 终点，看向终点
+        }
+        
+        // 计算在哪两个点之间
+        const segmentProgress = progress * (route.length - 1);
+        const segmentIndex = Math.floor(segmentProgress);
+        
+        // 下一个目标点是当前段的下一个点（确保向前看）
+        const targetIndex = Math.min(segmentIndex + 1, route.length - 1);
+        
+        return { segmentIndex, targetIndex };
+    }
+    
+    /**
+     * 计算前进方向与参考方向的夹角（heading）
+     * @param {SuperMap3D.Cartesian3} direction 前进方向
+     * @param {SuperMap3D.Cartesian3} reference 参考方向（通常为正北）
+     * @returns {Number} 朝向角度（弧度）
+     */
+    calculateHeading(direction, reference) {
+        // 将方向向量投影到水平面（忽略Z轴）
+        const horizontalDirection = new SuperMap3D.Cartesian3(direction.x, direction.y, 0);
+        const horizontalReference = new SuperMap3D.Cartesian3(reference.x, reference.y, 0);
+        
+        // 标准化向量
+        SuperMap3D.Cartesian3.normalize(horizontalDirection, horizontalDirection);
+        SuperMap3D.Cartesian3.normalize(horizontalReference, horizontalReference);
+        
+        // 计算点积
+        const dot = SuperMap3D.Cartesian3.dot(horizontalDirection, horizontalReference);
+        
+        // 计算叉积的Z分量（用于判断方向）
+        const crossZ = horizontalDirection.x * horizontalReference.y - horizontalDirection.y * horizontalReference.x;
+        
+        // 计算夹角
+        let angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+        
+        // 根据叉积的Z分量判断方向（正负）
+        // 修正：当crossZ < 0时，角度应该是2π - angle，而不是-angle
+        if (crossZ < 0) {
+            angle = 2 * Math.PI - angle;
+        }
+        
+        return angle;
+    }
+    
+    /**
+     * 计算路径地面的法向量，确保直立行走视角
+     * 地面就是生成路径的那个面，确保人正常走路的第一视角
+     * @param {SuperMap3D.Cartesian3} currentPosition 当前位置
+     * @param {Array} route 路径点数组
+     * @param {Number} segmentIndex 当前段索引
+     * @returns {SuperMap3D.Cartesian3} 地面法向量
+     */
+    calculateGroundNormal(currentPosition, route, segmentIndex) {
+        // 使用固定的地面法向量进行测试
+        const fixedNormal = new SuperMap3D.Cartesian3(-0.394, 0.736, 0.551);
+        console.log(`[地面法向量] 使用固定法向量 - 段索引:${segmentIndex}, 地面法向量:(${fixedNormal.x.toFixed(3)}, ${fixedNormal.y.toFixed(3)}, ${fixedNormal.z.toFixed(3)})`);
+        return fixedNormal;
     }
     
     /**
@@ -512,49 +1027,11 @@ class IndoorNavigation {
     }
 
     /**
-     * 切换楼层
-     * @param {number} floor 楼层号
+     * 键盘释放事件
+     * @param {KeyboardEvent} event 键盘事件
      */
-    changeFloor(floor) {
-        this.currentFloor = floor;
-        
-        const camera = this.viewer.camera;
-        const currentPosition = camera.position.clone();
-        
-        // 计算新的高度
-        const newHeight = (floor - 1) * this.floorHeight + this.cameraHeight;
-        currentPosition.z = newHeight;
-        
-        // 平滑过渡到新楼层
-        camera.flyTo({
-            destination: currentPosition,
-            duration: 1.0,
-            easingFunction: SuperMap3D.EasingFunction.CUBIC_IN_OUT
-        });
-        
-        // 更新楼层显示
-        this.updateFloorDisplay(floor);
-        
-        console.log(`切换到第${floor}层`);
-    }
-
-    /**
-     * 更新楼层显示
-     * @param {number} floor 楼层号
-     */
-    updateFloorDisplay(floor) {
-        // 这里可以实现楼层相关的显示逻辑
-        // 例如：显示/隐藏特定楼层的模型、调整透明度等
-        
-        if (this.scene.layers) {
-            this.scene.layers.forEach(layer => {
-                if (layer.floorNumber && layer.floorNumber !== floor) {
-                    layer.alpha = 0.3; // 其他楼层半透明
-                } else {
-                    layer.alpha = 1.0; // 当前楼层不透明
-                }
-            });
-        }
+    onKeyUp(event) {
+        // 可以在这里处理键盘释放后的逻辑
     }
 
     /**
@@ -562,53 +1039,7 @@ class IndoorNavigation {
      * @param {KeyboardEvent} event 键盘事件
      */
     onKeyDown(event) {
-        if (!this.isNavigating) return;
-
-        const camera = this.viewer.camera;
-        const moveDistance = this.walkingSpeed * 0.1; // 移动距离
-
-        switch (event.code) {
-            case 'KeyW': // 前进
-                camera.moveForward(moveDistance);
-                break;
-            case 'KeyS': // 后退
-                camera.moveBackward(moveDistance);
-                break;
-            case 'KeyA': // 左移
-                camera.moveLeft(moveDistance);
-                break;
-            case 'KeyD': // 右移
-                camera.moveRight(moveDistance);
-                break;
-            case 'KeyQ': // 上升
-                camera.moveUp(moveDistance);
-                break;
-            case 'KeyE': // 下降
-                camera.moveDown(moveDistance);
-                break;
-            case 'ArrowUp': // 向上看
-                camera.lookUp(SuperMap3D.Math.toRadians(1));
-                break;
-            case 'ArrowDown': // 向下看
-                camera.lookDown(SuperMap3D.Math.toRadians(1));
-                break;
-            case 'ArrowLeft': // 向左看
-                camera.lookLeft(SuperMap3D.Math.toRadians(1));
-                break;
-            case 'ArrowRight': // 向右看
-                camera.lookRight(SuperMap3D.Math.toRadians(1));
-                break;
-        }
-        
-        event.preventDefault();
-    }
-
-    /**
-     * 键盘释放事件
-     * @param {KeyboardEvent} event 键盘事件
-     */
-    onKeyUp(event) {
-        // 可以在这里处理键盘释放后的逻辑
+        // 可以在这里处理键盘按下的逻辑
     }
 
     /**
@@ -642,80 +1073,10 @@ class IndoorNavigation {
         this.scene.screenSpaceCameraController.enableRotate = true;
         this.scene.screenSpaceCameraController.enableTranslate = true;
         this.scene.screenSpaceCameraController.enableZoom = true;
-        console.log('🎮 相机控制已恢复，用户可以自由操作');
+        // 相机控制已恢复
     }
 
-    /**
-     * 清除路径
-     */
-    clearRoute() {
-        try {
-            console.log('🧹 开始清除路径，当前路径点数量:', this.routePoints.length);
-            this.routePoints = [];
-            
-            // 清除路径线
-            if (this.routePolyline) {
-                console.log('🗑️ 清除路径线');
-                this.viewer.entities.remove(this.routePolyline);
-                this.routePolyline = null;
-            }
-            
-            // 清除路径实体（新版本）
-            if (this.routeEntity) {
-                console.log('🗑️ 清除路径实体');
-                this.viewer.entities.remove(this.routeEntity);
-                this.routeEntity = null;
-            }
-            
-            // 清除起点标记
-            if (this.startMarker) {
-                console.log('🗑️ 清除起点标记');
-                this.viewer.entities.remove(this.startMarker);
-                this.startMarker = null;
-            }
-            
-            // 清除终点标记
-            if (this.endMarker) {
-                console.log('🗑️ 清除终点标记');
-                this.viewer.entities.remove(this.endMarker);
-                this.endMarker = null;
-            }
-            
-            // 清除所有导航相关的临时实体（但保留模型）
-            const entitiesToRemove = [];
-            this.viewer.entities.values.forEach(entity => {
-                // 只清除导航相关的实体，保留模型实体
-                if (entity.name && (
-                    entity.name.includes('路径') || 
-                    entity.name.includes('起点') || 
-                    entity.name.includes('终点') ||
-                    entity.name.includes('导航') ||
-                    entity.name.includes('Navigation') ||
-                    entity.name === 'route' ||
-                    entity.name === 'startPoint' ||
-                    entity.name === 'endPoint' ||
-                    entity.name === 'Navigation Route' ||
-                    entity.name === 'Start Point' ||
-                    entity.name === 'End Point'
-                )) {
-                    entitiesToRemove.push(entity);
-                }
-            });
-            
-            entitiesToRemove.forEach(entity => {
-                console.log('🗑️ 清除导航实体:', entity.name);
-                this.viewer.entities.remove(entity);
-            });
-            
-            // 停止当前的导航动画
-            this.stopNavigation();
-            
-            console.log('✅ 路径清除完成，保留了模型实体');
-            console.log('🔍 当前场景中剩余实体数量:', this.viewer.entities.values.length);
-        } catch (error) {
-            console.error('❌ 清除路径失败:', error);
-        }
-    }
+
 
     /**
      * 停止导航
@@ -735,7 +1096,18 @@ class IndoorNavigation {
         // 恢复相机控制
         this.restoreCameraControls();
         
-        console.log('🛑 导航已停止，相机控制已恢复');
+        // 恢复相机到原始位置
+        if (this.originalCameraState) {
+            this.viewer.camera.setView({
+                destination: this.originalCameraState.position,
+                orientation: {
+                    direction: this.originalCameraState.direction,
+                    up: this.originalCameraState.up
+                }
+            });
+        }
+        
+        // 导航已停止，相机控制已恢复，位置已重置
     }
 
     /**
@@ -775,7 +1147,7 @@ class IndoorNavigation {
         document.removeEventListener('keydown', this.onKeyDown);
         document.removeEventListener('keyup', this.onKeyUp);
         
-        console.log('🗑️ 导航模块已销毁');
+        // 导航模块已销毁
     }
 }
 

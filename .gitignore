@@ -1,0 +1,29 @@
+# Dependencies (keep package-lock.json for builds)
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+build/
+dist/
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Large binary files
+*.glb
+*.gltf
+*.bin

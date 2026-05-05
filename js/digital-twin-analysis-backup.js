@@ -6640,67 +6640,45 @@ class DigitalTwinAnalysis {
     try {
       console.log('📏 执行距离测量，模式:', mode)
 
-      // 先停用之前的处理器（不清除数据）
+      // 先停用之前的测量
       if (this.measureHandler) {
-        this.measureHandler.deactivate()
-        this.measureHandler.clear()
+        try {
+          this.measureHandler.deactivate()
+          this.measureHandler.clear()
+        } catch (e) {
+          console.warn('停用旧测量处理器时出错:', e)
+        }
       }
 
-      // 创建新的测量处理器
+      // 创建新的距离测量处理器
       this.measureHandler = new SuperMap3D.MeasureHandler(
         this.viewer,
         SuperMap3D.MeasureMode.Distance,
-        SuperMap3D.ClampMode.None,
+        SuperMap3D.ClampMode.Space,
       )
 
-      // 保存this引用
-      const self = this
+      // 设置测量模式
+      if (mode === 1) {
+        // 水平距离 - 贴地模式
+        this.measureHandler.clampMode = SuperMap3D.ClampMode.Ground
+      }
 
-      // 监听测量完成事件
-      this.measureHandler.measureEvt.addEventListener(function (result) {
+      // 设置十字光标
+      this.setCrosshairCursor()
+
+      // 激活测量
+      this.measureHandler.activate()
+
+      // 创建结果面板
+      this.createMeasureResultPanel()
+
+      // 监听测量完成事件 - 只添加一次
+      this.measureHandler.measureEvt.removeAllListeners()
+      this.measureHandler.measureEvt.addEventListener((result) => {
         console.log('📏 距离测量结果:', result)
-        console.log('📏 result 对象类型:', typeof result)
 
-        try {
-          // 首先检查 result 是否有效
-          if (!result || typeof result !== 'object') {
-            console.error('❌ result 无效或不是对象:', result)
-            return
-          }
-
-          // 确保 distance 是有效数字
-          let distance = result.distance
-
-          // 首先检查是否 undefined
-          if (distance === undefined || distance === null) {
-            console.error('❌ distance 为 undefined 或 null')
-            return
-          }
-
-          // 首先检查是否是数字类型
-          if (typeof distance === 'number' && !isNaN(distance)) {
-            console.log('✅ distance 已经是有效数字')
-          } else if (typeof distance === 'string') {
-            console.log('🔄 distance 是字符串，尝试转换')
-            const parsed = parseFloat(distance)
-            if (!isNaN(parsed)) {
-              distance = parsed
-              console.log('✅ distance 转换成功:', distance)
-            } else {
-              console.error('❌ distance 转换失败:', distance)
-              return
-            }
-          } else {
-            console.error('❌ distance 类型无效:', typeof distance, distance)
-            return
-          }
-
-          // 再次验证
-          if (typeof distance !== 'number' || isNaN(distance)) {
-            console.error('❌ 最终检查：distance 无效')
-            return
-          }
-
+        if (result.distance) {
+          const distance = result.distance
           let distanceText = ''
 
           if (distance >= 1000) {
@@ -6709,28 +6687,16 @@ class DigitalTwinAnalysis {
             distanceText = `${distance.toFixed(2)} m`
           }
 
-          console.log('✅ 距离文本:', distanceText)
-
           // 显示测量结果标签
-          self.measureHandler.disLabel.text = distanceText
+          this.measureHandler.disLabel.text = distanceText
 
           // 在面板中显示结果
-          self.displayMeasureResult('distance', { distance: distance })
+          this.displayMeasureResult('distance', result)
 
-          console.log('✅ 距离测量完成:', distanceText)
-        } catch (error) {
-          console.error('❌ 处理距离测量结果失败:', error)
+          // 恢复默认光标
+          this.resetCursor()
         }
       })
-
-      // 激活测量处理器
-      this.measureHandler.activate()
-
-      // 设置十字光标
-      this.setCrosshairCursor()
-
-      // 创建结果面板
-      this.createMeasureResultPanel()
 
       this.activeAnalysis = 'distance_measure'
       console.log('✅ 距离测量已激活')
@@ -6751,70 +6717,45 @@ class DigitalTwinAnalysis {
     try {
       console.log('📐 执行面积测量，模式:', mode)
 
-      // 先停用之前的处理器
+      // 先停用之前的测量
       if (this.measureHandler) {
-        this.measureHandler.deactivate()
-        this.measureHandler.clear()
-        console.log('📐 已停用之前的处理器')
+        try {
+          this.measureHandler.deactivate()
+          this.measureHandler.clear()
+        } catch (e) {
+          console.warn('停用旧测量处理器时出错:', e)
+        }
       }
 
-      // 创建新的测量处理器
+      // 创建新的面积测量处理器
       this.measureHandler = new SuperMap3D.MeasureHandler(
         this.viewer,
         SuperMap3D.MeasureMode.Area,
-        SuperMap3D.ClampMode.None,
+        SuperMap3D.ClampMode.Space,
       )
-      console.log('📐 已创建新的测量处理器')
 
-      // 保存this引用
-      const self = this
+      // 设置测量模式
+      if (mode === 1) {
+        // 投影面积 - 贴地模式
+        this.measureHandler.clampMode = SuperMap3D.ClampMode.Ground
+      }
 
-      // 监听测量完成事件
-      this.measureHandler.measureEvt.addEventListener(function (result) {
+      // 设置十字光标
+      this.setCrosshairCursor()
+
+      // 激活测量
+      this.measureHandler.activate()
+
+      // 创建结果面板
+      this.createMeasureResultPanel()
+
+      // 监听测量完成事件 - 只添加一次
+      this.measureHandler.measureEvt.removeAllListeners()
+      this.measureHandler.measureEvt.addEventListener((result) => {
         console.log('📐 面积测量结果:', result)
-        console.log('📐 result 对象类型:', typeof result)
-        console.log('📐 result.area 值:', result.area)
 
-        try {
-          // 首先检查 result 是否有效
-          if (!result || typeof result !== 'object') {
-            console.error('❌ result 无效或不是对象:', result)
-            return
-          }
-
-          // 确保 area 是有效数字
-          let area = result.area
-
-          // 首先检查是否 undefined
-          if (area === undefined || area === null) {
-            console.error('❌ area 为 undefined 或 null')
-            return
-          }
-
-          // 首先检查是否是数字类型
-          if (typeof area === 'number' && !isNaN(area)) {
-            console.log('✅ area 已经是有效数字')
-          } else if (typeof area === 'string') {
-            console.log('🔄 area 是字符串，尝试转换')
-            const parsed = parseFloat(area)
-            if (!isNaN(parsed)) {
-              area = parsed
-              console.log('✅ area 转换成功:', area)
-            } else {
-              console.error('❌ area 转换失败:', area)
-              return
-            }
-          } else {
-            console.error('❌ area 类型无效:', typeof area, area)
-            return
-          }
-
-          // 再次验证
-          if (typeof area !== 'number' || isNaN(area)) {
-            console.error('❌ 最终检查：area 无效')
-            return
-          }
-
+        if (result.area) {
+          const area = result.area
           let areaText = ''
 
           if (area >= 1000000) {
@@ -6825,31 +6766,16 @@ class DigitalTwinAnalysis {
             areaText = `${area.toFixed(2)} m²`
           }
 
-          console.log('✅ 面积文本:', areaText)
-
           // 显示测量结果标签
-          self.measureHandler.areaLabel.text = areaText
+          this.measureHandler.areaLabel.text = areaText
 
           // 在面板中显示结果
-          self.displayMeasureResult('area', { area: area })
+          this.displayMeasureResult('area', result)
 
-          console.log('✅ 面积测量完成:', areaText)
-        } catch (error) {
-          console.error('❌ 处理面积测量结果失败:', error)
+          // 恢复默认光标
+          this.resetCursor()
         }
       })
-
-      // 激活测量处理器
-      this.measureHandler.activate()
-      console.log('📐 已激活测量处理器')
-
-      // 设置十字光标
-      this.setCrosshairCursor()
-      console.log('📐 已设置十字光标')
-
-      // 创建结果面板
-      this.createMeasureResultPanel()
-      console.log('📐 已创建结果面板')
 
       this.activeAnalysis = 'area_measure'
       console.log('✅ 面积测量已激活')
@@ -6869,117 +6795,65 @@ class DigitalTwinAnalysis {
     try {
       console.log('📊 执行高度测量')
 
-      // 先停用之前的处理器（不清除数据）
+      // 先停用之前的测量
       if (this.measureHandler) {
-        this.measureHandler.deactivate()
-        this.measureHandler.clear()
+        try {
+          this.measureHandler.deactivate()
+          this.measureHandler.clear()
+        } catch (e) {
+          console.warn('停用旧测量处理器时出错:', e)
+        }
       }
 
-      // 创建新的测量处理器
+      // 创建新的高度测量处理器（DVH模式）
       this.measureHandler = new SuperMap3D.MeasureHandler(
         this.viewer,
         SuperMap3D.MeasureMode.DVH,
-        SuperMap3D.ClampMode.None,
+        SuperMap3D.ClampMode.Space,
       )
-
-      // 保存this引用
-      const self = this
-
-      // 监听测量完成事件
-      this.measureHandler.measureEvt.addEventListener(function (result) {
-        console.log('📊 高度测量结果:', result)
-        console.log('📊 result 对象类型:', typeof result)
-
-        try {
-          // 首先检查 result 是否有效
-          if (!result || typeof result !== 'object') {
-            console.error('❌ result 无效或不是对象:', result)
-            return
-          }
-
-          // 提取并转换所有值为数字
-          let verticalHeight = result.verticalHeight
-          let horizontalDistance = result.horizontalDistance
-          let distance = result.distance
-
-          console.log('📊 原始值:', {
-            verticalHeight,
-            horizontalDistance,
-            distance,
-          })
-
-          // 转换为数字
-          if (typeof verticalHeight === 'string') {
-            verticalHeight = parseFloat(verticalHeight)
-          }
-          if (typeof horizontalDistance === 'string') {
-            horizontalDistance = parseFloat(horizontalDistance)
-          }
-          if (typeof distance === 'string') {
-            distance = parseFloat(distance)
-          }
-
-          // 处理无效值
-          verticalHeight =
-            typeof verticalHeight === 'number' && !isNaN(verticalHeight)
-              ? verticalHeight
-              : 0
-          horizontalDistance =
-            typeof horizontalDistance === 'number' && !isNaN(horizontalDistance)
-              ? horizontalDistance
-              : 0
-          distance =
-            typeof distance === 'number' && !isNaN(distance) ? distance : 0
-
-          console.log('📊 转换后值:', {
-            verticalHeight,
-            horizontalDistance,
-            distance,
-          })
-
-          let resultText = ''
-
-          // 显示垂直高度
-          if (verticalHeight > 0) {
-            resultText += `垂直高度: ${verticalHeight.toFixed(2)} m\n`
-          }
-
-          // 显示水平距离
-          if (horizontalDistance > 0) {
-            resultText += `水平距离: ${horizontalDistance.toFixed(2)} m\n`
-          }
-
-          // 显示总距离
-          if (distance > 0) {
-            resultText += `空间距离: ${distance.toFixed(2)} m`
-          }
-
-          console.log('📊 结果文本:', resultText)
-
-          // 显示测量结果标签
-          self.measureHandler.vLabel.text = resultText
-
-          // 在面板中显示结果
-          self.displayMeasureResult('height', {
-            verticalHeight: verticalHeight,
-            horizontalDistance: horizontalDistance,
-            distance: distance,
-          })
-
-          console.log('✅ 高度测量完成:', resultText)
-        } catch (error) {
-          console.error('❌ 处理高度测量结果失败:', error)
-        }
-      })
-
-      // 激活测量处理器
-      this.measureHandler.activate()
 
       // 设置十字光标
       this.setCrosshairCursor()
 
+      // 激活测量
+      this.measureHandler.activate()
+
       // 创建结果面板
       this.createMeasureResultPanel()
+
+      // 监听测量完成事件 - 只添加一次
+      this.measureHandler.measureEvt.removeAllListeners()
+      this.measureHandler.measureEvt.addEventListener((result) => {
+        console.log('📊 高度测量结果:', result)
+
+        if (result) {
+          let resultText = ''
+
+          // 显示垂直高度
+          if (result.verticalHeight) {
+            resultText += `垂直高度: ${result.verticalHeight.toFixed(2)} m\n`
+          }
+
+          // 显示水平距离
+          if (result.horizontalDistance) {
+            resultText += `水平距离: ${result.horizontalDistance.toFixed(2)} m\n`
+          }
+
+          // 显示总距离
+          if (result.distance) {
+            resultText += `空间距离: ${result.distance.toFixed(2)} m`
+          }
+
+          // 显示测量结果标签
+          this.measureHandler.vLabel.text = resultText
+
+          // 在面板中显示结果
+          this.displayMeasureResult('height', result)
+
+          // 恢复默认光标
+          this.resetCursor()
+        }
+      })
 
       this.activeAnalysis = 'height_measure'
       console.log('✅ 高度测量已激活')
@@ -6999,6 +6873,195 @@ class DigitalTwinAnalysis {
   clearMeasurements(measureType = 'all') {
     try {
       console.log('🗑️ 清除测量结果，类型:', measureType)
+
+      // 恢复光标
+      this.resetCursor()
+
+      // 停用测量处理器
+      if (this.measureHandler) {
+        this.measureHandler.deactivate()
+        this.measureHandler.clear()
+      }
+
+      // 清除测量实体
+      if (this.measureEntities && this.measureEntities.length > 0) {
+        this.measureEntities.forEach((entity) => {
+          try {
+            if (this.viewer.entities.contains(entity)) {
+              this.viewer.entities.remove(entity)
+            }
+          } catch (e) {
+            console.warn('清除测量实体时出错:', e)
+          }
+        })
+        this.measureEntities = []
+      }
+
+      // 清除测量结果
+      if (measureType === 'all') {
+        this.measureResults = []
+        // 隐藏测量结果面板
+        const panel = document.getElementById('measureResultPanel')
+        if (panel) {
+          panel.style.display = 'none'
+        }
+      } else {
+        this.measureResults = this.measureResults.filter(
+          (result) => result.type !== measureType,
+        )
+      }
+
+      this.activeAnalysis = null
+      console.log('✅ 测量结果已清除')
+
+      return true
+    } catch (error) {
+      console.error('❌ 清除测量失败:', error)
+      return false
+    }
+  }
+        SuperMap3D.ClampMode.None,
+      )
+
+      // 设置测量模式
+      if (mode === 1) {
+        // 投影面积 - 贴地
+        this.measureHandler.clampMode = SuperMap3D.ClampMode.Ground
+      }
+
+      // 设置十字光标
+      this.setCrosshairCursor()
+
+      // 激活测量
+      this.measureHandler.activate()
+
+      // 创建结果面板
+      this.createMeasureResultPanel()
+
+      // 监听测量完成事件
+      this.measureHandler.measureEvt.addEventListener((result) => {
+        console.log('📐 面积测量结果:', result)
+
+        if (result.area) {
+          const area = result.area
+          let areaText = ''
+
+          if (area >= 1000000) {
+            areaText = `${(area / 1000000).toFixed(2)} km²`
+          } else if (area >= 10000) {
+            areaText = `${(area / 10000).toFixed(2)} 万m²`
+          } else {
+            areaText = `${area.toFixed(2)} m²`
+          }
+
+          // 显示测量结果标签
+          this.measureHandler.areaLabel.text = areaText
+
+          // 在面板中显示结果
+          this.displayMeasureResult('area', result)
+
+          // 恢复默认光标
+          this.resetCursor()
+        }
+      })
+
+      this.activeAnalysis = 'area_measure'
+      console.log('✅ 面积测量已激活')
+
+      return true
+    } catch (error) {
+      console.error('❌ 面积测量失败:', error)
+      this.resetCursor()
+      return false
+    }
+  }
+
+  /**
+   * 执行高度测量（DVH）
+   */
+  performHeightMeasure() {
+    try {
+      console.log('📊 执行高度测量')
+
+      // 清除之前的测量
+      this.clearMeasurements('all')
+
+      if (!this.measureHandler) {
+        if (!this.initMeasureAnalysis()) {
+          throw new Error('测量分析初始化失败')
+        }
+      }
+
+      // 设置测量模式为DVH（距离、垂直高度、水平距离）
+      this.measureHandler = new SuperMap3D.MeasureHandler(
+        this.viewer,
+        SuperMap3D.MeasureMode.DVH,
+        SuperMap3D.ClampMode.None,
+      )
+
+      // 设置十字光标
+      this.setCrosshairCursor()
+
+      // 激活测量
+      this.measureHandler.activate()
+
+      // 创建结果面板
+      this.createMeasureResultPanel()
+
+      // 监听测量完成事件
+      this.measureHandler.measureEvt.addEventListener((result) => {
+        console.log('📊 高度测量结果:', result)
+
+        if (result) {
+          let resultText = ''
+
+          // 显示垂直高度
+          if (result.verticalHeight) {
+            resultText += `垂直高度: ${result.verticalHeight.toFixed(2)} m\n`
+          }
+
+          // 显示水平距离
+          if (result.horizontalDistance) {
+            resultText += `水平距离: ${result.horizontalDistance.toFixed(2)} m\n`
+          }
+
+          // 显示总距离
+          if (result.distance) {
+            resultText += `空间距离: ${result.distance.toFixed(2)} m`
+          }
+
+          // 显示测量结果标签
+          this.measureHandler.vLabel.text = resultText
+
+          // 在面板中显示结果
+          this.displayMeasureResult('height', result)
+
+          // 恢复默认光标
+          this.resetCursor()
+        }
+      })
+
+      this.activeAnalysis = 'height_measure'
+      console.log('✅ 高度测量已激活')
+
+      return true
+    } catch (error) {
+      console.error('❌ 高度测量失败:', error)
+      this.resetCursor()
+      return false
+    }
+  }
+
+  /**
+   * 清除测量结果
+   * @param {string} measureType 要清除的测量类型：all, distance, area, height
+   */
+  clearMeasurements(measureType = 'all') {
+    try {
+      console.log('🗑️ 清除测量结果，类型:', measureType)
+
+      // 恢复光标
+      this.resetCursor()
 
       // 停用测量处理器
       if (this.measureHandler) {

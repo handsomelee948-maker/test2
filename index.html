@@ -1,32 +1,39 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
     <title>实景三维时空分析工具</title>
     <!-- SuperMap3D CSS -->
-    <link href="../build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
-    
+    <link href="build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
+
     <!-- 自定义样式 -->
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/property-editor.css">
-    <link rel="stylesheet" href="css/ai-chat.css">
-    <script src="../build/SuperMap3D/SuperMap3D.js"></script>
+    <link rel="stylesheet" href="css/intelligent-assistant.css">
+    <script src="build/SuperMap3D/SuperMap3D.js"></script>
 </head>
+
 <body>
     <!-- 主容器 -->
     <div id="Container"></div>
-    
+
     <!-- 主界面剖面图表容器 -->
-    <div id="mainProfileChartContainer" class="main-profile-chart" style="position: fixed; top: 80px; right: 20px; width: 400px; background: rgba(255,255,255,0.98); border: 1px solid #ccc; border-radius: 8px; padding: 15px; display: none; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <div id="mainProfileChartContainer" class="main-profile-chart"
+        style="position: fixed; top: 80px; right: 20px; width: 400px; background: rgba(255,255,255,0.98); border: 1px solid #ccc; border-radius: 8px; padding: 15px; display: none; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div class="chart-header"
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h5 style="margin: 0; color: #333;">剖面图表</h5>
-            <button id="closeMainProfileChart" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #666;">&times;</button>
+            <button id="closeMainProfileChart"
+                style="background: none; border: none; font-size: 18px; cursor: pointer; color: #666;">&times;</button>
         </div>
-        <canvas id="mainProfileChart" width="400" height="200" style="border: 1px solid #ddd; background-color: #fff; width: 100%; height: auto;"></canvas>
+        <canvas id="mainProfileChart" width="400" height="200"
+            style="border: 1px solid #ddd; background-color: #fff; width: 100%; height: auto;"></canvas>
     </div>
-    
+
     <!-- 加载动画 -->
     <div id='loadingbar' class="spinner">
         <div class="spinner-container container1">
@@ -57,7 +64,7 @@
             <div class="system-title-section">
                 <h1 class="system-title">实景三维时空分析系统</h1>
             </div>
-            
+
             <!-- 功能模块区域 -->
             <div class="modules-container">
                 <!-- 模型管理模块 (4个功能) -->
@@ -72,7 +79,7 @@
                         <button id="layerManagementBtn" class="btn btn-info">图层管理</button>
                     </div>
                 </div>
-                
+
                 <!-- 室内导航模块 (3个功能) -->
                 <div class="module-section" data-functions="3">
                     <div class="module-header">
@@ -84,7 +91,7 @@
                         <button id="clearNavigationBtn" class="btn btn-danger">清除路径</button>
                     </div>
                 </div>
-                
+
                 <!-- 数字孪生分析模块 (6个功能) -->
                 <div class="module-section" data-functions="6">
                     <div class="module-header">
@@ -99,7 +106,7 @@
                         <button id="clearAnalysisBtn" class="btn btn-danger">清除分析</button>
                     </div>
                 </div>
-                
+
                 <!-- 场景效果模块 (2个功能) -->
                 <div class="module-section" data-functions="2">
                     <div class="module-header">
@@ -108,6 +115,19 @@
                     <div class="module-functions">
                         <button id="lightingBtn" class="btn btn-secondary">光照设置</button>
                         <button id="bloomBtn" class="btn btn-warning">泛光效果</button>
+                    </div>
+                </div>
+
+                <!-- 测量分析模块 (4个功能) -->
+                <div class="module-section" data-functions="4">
+                    <div class="module-header">
+                        <span class="module-title">测量分析</span>
+                    </div>
+                    <div class="module-functions">
+                        <button id="distanceMeasureBtn" class="btn btn-primary">距离测量</button>
+                        <button id="areaMeasureBtn" class="btn btn-success">面积测量</button>
+                        <button id="heightMeasureBtn" class="btn btn-info">高度测量</button>
+                        <button id="clearMeasureBtn" class="btn btn-danger">清除测量</button>
                     </div>
                 </div>
             </div>
@@ -131,6 +151,9 @@
             <div id="layerTree" class="layer-tree"></div>
         </div>
     </div>
+
+    <!-- 左侧面板展开按钮（面板收起时显示） -->
+    <button id="expandLeftPanel" class="expand-panel-btn" title="展开面板" style="display: none;">▶</button>
 
     <!-- 临时面板容器（用于弹出的功能面板） -->
     <div id="tempPanelContainer"></div>
@@ -196,14 +219,15 @@
                 <!-- 剖面图表显示区域 -->
                 <div id="profileChartContainer" style="margin-top: 15px; display: none;">
                     <h5>剖面图表</h5>
-                    <canvas id="profileChart" width="400" height="200" style="border: 1px solid #ccc; background-color: rgba(255,255,255,0.9);"></canvas>
+                    <canvas id="profileChart" width="400" height="200"
+                        style="border: 1px solid #ccc; background-color: rgba(255,255,255,0.9);"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
 
-==
+    ==
     <!-- 可视域分析面板 -->
     <div id="viewshedPanel" class="panel">
         <div class="panel-header">
@@ -263,39 +287,55 @@
                 <div class="shadow-params">
                     <div class="param-item">
                         <label for="shadowDate">日期选择：</label>
-                        <input id="shadowDate" type="date" value="2024-01-15"/>
+                        <input id="shadowDate" type="date" value="2024-01-15" />
                     </div>
                     <div class="param-item">
                         <label for="shadowStartTime">开始时间：</label>
                         <select id="shadowStartTime" class="form-select">
                             <option value="6">6:00</option>
+                            <option value="7">7:00</option>
                             <option value="8">8:00</option>
+                            <option value="9">9:00</option>
                             <option value="10" selected>10:00</option>
+                            <option value="11">11:00</option>
                             <option value="12">12:00</option>
+                            <option value="13">13:00</option>
                             <option value="14">14:00</option>
+                            <option value="15">15:00</option>
                             <option value="16">16:00</option>
+                            <option value="17">17:00</option>
                             <option value="18">18:00</option>
+                            <option value="19">19:00</option>
+                            <option value="20">20:00</option>
                         </select>
                     </div>
                     <div class="param-item">
                         <label for="shadowEndTime">结束时间：</label>
                         <select id="shadowEndTime" class="form-select">
+                            <option value="7">7:00</option>
                             <option value="8">8:00</option>
+                            <option value="9">9:00</option>
                             <option value="10">10:00</option>
+                            <option value="11">11:00</option>
                             <option value="12">12:00</option>
+                            <option value="13">13:00</option>
                             <option value="14" selected>14:00</option>
+                            <option value="15">15:00</option>
                             <option value="16">16:00</option>
+                            <option value="17">17:00</option>
                             <option value="18">18:00</option>
+                            <option value="19">19:00</option>
                             <option value="20">20:00</option>
+                            <option value="21">21:00</option>
                         </select>
                     </div>
                     <div class="param-item">
                         <label for="shadowBottomHeight">底部高程：</label>
-                        <input id="shadowBottomHeight" type="number" value="20" min="0" max="1000"/>
+                        <input id="shadowBottomHeight" type="number" value="20" min="0" max="1000" />
                     </div>
                     <div class="param-item">
                         <label for="shadowExtrudeHeight">拉伸高度：</label>
-                        <input id="shadowExtrudeHeight" type="number" value="20" min="1" max="500"/>
+                        <input id="shadowExtrudeHeight" type="number" value="20" min="1" max="500" />
                     </div>
                 </div>
                 <div class="control-buttons">
@@ -310,19 +350,19 @@
                     <div class="ratio-info">
                         <div class="info-item">
                             <label>阴影率：</label>
-                            <input type="text" id="shadowRatioText" readonly/>
+                            <input type="text" id="shadowRatioText" readonly />
                         </div>
                         <div class="info-item">
                             <label>经度：</label>
-                            <input type="text" id="shadowLongitudeText" readonly/>
+                            <input type="text" id="shadowLongitudeText" readonly />
                         </div>
                         <div class="info-item">
                             <label>纬度：</label>
-                            <input type="text" id="shadowLatitudeText" readonly/>
+                            <input type="text" id="shadowLatitudeText" readonly />
                         </div>
                         <div class="info-item">
                             <label>高程：</label>
-                            <input type="text" id="shadowHeightText" readonly/>
+                            <input type="text" id="shadowHeightText" readonly />
                         </div>
                     </div>
                 </div>
@@ -341,18 +381,17 @@
                 <div class="skyline-params">
                     <div class="param-item">
                         <label for="skylineRadius">分析半径(米)：</label>
-                        <input id="skylineRadius" type="number" value="10000" min="1000" max="50000" step="1000"/>
+                        <input id="skylineRadius" type="number" value="10000" min="1000" max="50000" step="1000" />
                     </div>
                 </div>
                 <div class="control-buttons">
                     <button id="extractSkyline" class="btn btn-primary">提取天际线</button>
                     <button id="getSkyline2D" class="btn btn-success">二维天际线</button>
-                    <button id="setLimitBody" class="btn btn-warning">绘制限高体</button>
-                    <button id="getSkylineArea" class="btn btn-info">拉伸闭合体</button>
                     <button id="clearSkyline" class="btn btn-outline-secondary">清除</button>
                 </div>
                 <!-- 二维天际线图表容器 -->
-                <div id="skylineChart" class="skyline-chart" style="display: none; width: 100%; height: 300px; margin-top: 15px;"></div>
+                <div id="skylineChart" class="skyline-chart"
+                    style="display: none; width: 100%; height: 300px; margin-top: 15px;"></div>
             </div>
         </div>
     </div>
@@ -426,7 +465,6 @@
     <div id="statusBar" class="status-bar">
         <span id="coordinates">坐标: </span>
         <span id="cameraInfo">相机: </span>
-        <span id="fps">FPS: </span>
     </div>
 
     <!-- 可视域属性编辑弹窗 -->
@@ -462,7 +500,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 视场角属性 -->
                 <div class="property-group">
                     <div class="property-group-title">视场角属性</div>
@@ -481,7 +519,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 颜色设置 -->
                 <div class="property-group">
                     <div class="property-group-title">颜色设置</div>
@@ -500,24 +538,26 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 裁剪模式 -->
                 <div class="property-group">
                     <div class="property-group-title">裁剪模式</div>
                     <div class="property-item">
                         <label class="property-label">选择裁剪方式</label>
                         <div class="clip-mode-selector">
-                            <div class="clip-mode-option active" data-mode="keep-inside" onclick="selectClipMode('keep-inside')">
+                            <div class="clip-mode-option active" data-mode="keep-inside"
+                                onclick="selectClipMode('keep-inside')">
                                 保留区域内
                             </div>
-                            <div class="clip-mode-option" data-mode="keep-outside" onclick="selectClipMode('keep-outside')">
+                            <div class="clip-mode-option" data-mode="keep-outside"
+                                onclick="selectClipMode('keep-outside')">
                                 保留区域外
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            
+
             <div class="property-actions">
                 <button class="property-btn property-btn-secondary" onclick="resetViewshedProperties()">重置</button>
                 <button class="property-btn property-btn-primary" onclick="applyViewshedProperties()">应用</button>
@@ -525,44 +565,53 @@
         </div>
     </div>
 
+    <!-- 智能分析助手面板 -->
+    <div class="intelligent-assistant-panel" id="intelligentAssistantPanel">
+        <div class="assistant-header">
+            <h4>智能分析助手</h4>
+            <div class="status-indicator" id="assistantStatus">🔴</div>
+            <button id="toggleAssistant" class="btn btn-sm" style="padding: 5px 10px; font-size: 12px;">开启助手</button>
+        </div>
+        <div class="assistant-content" style="display: none;">
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input">
+                    <input type="text" id="chatInput" placeholder="输入您的问题或指令...">
+                    <button id="voiceButton" class="btn btn-sm btn-voice" title="点击开始语音输入">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                            <path
+                                d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                        </svg>
+                    </button>
+                    <button id="sendMessage" class="btn btn-sm btn-success">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 引入ECharts库 -->
     <script src="js/echarts.min.js"></script>
-    
+
     <!-- 引入配置文件 -->
     <script src="js/config.js"></script>
-    
+
     <!-- 引入功能模块 -->
     <script src="js/indoor-navigation.js"></script>
     <script src="js/interactive-analysis-manager.js"></script>
     <script src="js/digital-twin-analysis.js"></script>
     
-    <!-- 智能对话框 -->
-    <div id="aiChatContainer" class="ai-chat-container">
-        <div id="aiChatHeader" class="ai-chat-header">
-            <div class="ai-chat-title">
-                <span class="ai-icon">🤖</span>
-                <span>智能分析助手</span>
-            </div>
-            <div class="ai-chat-controls">
-                <button id="minimizeChat" class="minimize-btn" title="最小化">_</button>
-                <button id="closeChat" class="close-btn" title="关闭">&times;</button>
-            </div>
-        </div>
-        <div id="aiChatMessages" class="ai-chat-messages"></div>
-        <div id="aiChatInput" class="ai-chat-input">
-            <textarea id="aiChatTextarea" placeholder="输入您的分析指令..." rows="1"></textarea>
-            <button id="aiChatSend" title="发送">➤</button>
-        </div>
-        <div id="aiChatStatus" class="ai-chat-status">正在连接...</div>
-    </div>
+    <!-- 引入测量功能补丁（修复点击和结果显示问题） -->
+    <script src="js/measure-patch.js"></script>
 
-    <!-- 引入MCP客户端 -->
+    <!-- 引入Web Speech API语音识别 -->
+    <script src="js/web-speech-recognition.js"></script>
+
+    <!-- 引入MCP客户端和智能分析助手 -->
     <script src="js/mcp-client.js"></script>
-    
-    <!-- 引入智能对话框 -->
-    <script src="js/ai-chat.js"></script>
-    
+
     <!-- 引入主程序 -->
     <script src="js/main.js"></script>
 </body>
+
 </html>

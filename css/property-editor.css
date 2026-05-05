@@ -1,11 +1,11 @@
-/* 可视域属性编辑弹窗样式 */
+/* 可视域属性编辑弹窗样式 - 浅色主题 */
 .viewshed-property-modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.3);
     z-index: 10003;
     display: none;
     justify-content: center;
@@ -17,18 +17,19 @@
 }
 
 .property-editor-dialog {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     border-radius: 15px;
     padding: 25px;
     width: 400px;
     max-width: calc(100vw - 40px);
     max-height: calc(100vh - 40px);
     overflow-y: auto;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    color: white;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    color: #334155;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     position: relative;
     animation: modalSlideIn 0.3s ease-out;
+    border: 1px solid rgba(93, 207, 241, 0.3);
 }
 
 @keyframes modalSlideIn {
@@ -48,20 +49,20 @@
     align-items: center;
     margin-bottom: 20px;
     padding-bottom: 15px;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 2px solid #e2e8f0;
 }
 
 .property-editor-title {
     font-size: 20px;
     font-weight: bold;
     margin: 0;
-    color: #fff;
+    color: #1e293b;
 }
 
 .property-editor-close {
     background: none;
     border: none;
-    color: #fff;
+    color: #64748b;
     font-size: 24px;
     cursor: pointer;
     padding: 5px;
@@ -71,11 +72,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 .property-editor-close:hover {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: #f1f5f9;
+    color: #334155;
 }
 
 .property-editor-content {
@@ -85,17 +87,17 @@
 }
 
 .property-group {
-    background: rgba(255, 255, 255, 0.1);
+    background: #f8fafc;
     border-radius: 10px;
     padding: 15px;
-    backdrop-filter: blur(10px);
+    border: 1px solid #e2e8f0;
 }
 
 .property-group-title {
     font-size: 16px;
     font-weight: bold;
     margin-bottom: 15px;
-    color: #fff;
+    color: #1e293b;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -105,7 +107,7 @@
     content: "";
     width: 4px;
     height: 16px;
-    background: linear-gradient(45deg, #ff6b6b, #feca57);
+    background: linear-gradient(45deg, #3b82f6, #06b6d4);
     border-radius: 2px;
 }
 
@@ -123,32 +125,30 @@
 .property-label {
     font-size: 14px;
     font-weight: 500;
-    color: #fff;
+    color: #475569;
     display: flex;
     align-items: center;
     gap: 5px;
 }
 
 .property-input {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 10px 12px;
-    color: #fff;
+    color: #334155;
     font-size: 14px;
     transition: all 0.3s ease;
-    backdrop-filter: blur(5px);
 }
 
 .property-input:focus {
     outline: none;
-    border-color: #4ecdc4;
-    box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.3);
-    background: rgba(255, 255, 255, 0.2);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .property-input::placeholder {
-    color: rgba(255, 255, 255, 0.6);
+    color: #94a3b8;
 }
 
 .property-range {
@@ -160,7 +160,7 @@
 .property-range input[type="range"] {
     flex: 1;
     height: 6px;
-    background: rgba(255, 255, 255, 0.2);
+    background: #e2e8f0;
     border-radius: 3px;
     outline: none;
     -webkit-appearance: none;
@@ -170,30 +170,30 @@
     -webkit-appearance: none;
     width: 18px;
     height: 18px;
-    background: linear-gradient(45deg, #4ecdc4, #44a08d);
+    background: linear-gradient(45deg, #3b82f6, #06b6d4);
     border-radius: 50%;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .property-range input[type="range"]::-moz-range-thumb {
     width: 18px;
     height: 18px;
-    background: linear-gradient(45deg, #4ecdc4, #44a08d);
+    background: linear-gradient(45deg, #3b82f6, #06b6d4);
     border-radius: 50%;
     cursor: pointer;
     border: none;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .range-value {
-    background: rgba(255, 255, 255, 0.2);
+    background: #e2e8f0;
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
     min-width: 40px;
     text-align: center;
-    color: #fff;
+    color: #475569;
 }
 
 .color-picker-container {

@@ -40,7 +40,7 @@ class InteractiveAnalysisManager {
             // 绑定鼠标事件
             this.bindEvents();
             
-            console.log('✅ 交互式分析管理器初始化成功');
+            // console.log('✅ 交互式分析管理器初始化成功');
         } catch (error) {
             console.error('❌ 交互式分析管理器初始化失败:', error);
         }
@@ -88,7 +88,7 @@ class InteractiveAnalysisManager {
                 // 使用pickPosition获取精确的模型表面位置
                 const modelPosition = this.scene.pickPosition(windowPosition);
                 if (modelPosition) {
-                    console.log('✅ 拾取到模型表面位置:', modelPosition);
+                    // 拾取到模型表面位置
                     return modelPosition;
                 }
             }
@@ -96,7 +96,7 @@ class InteractiveAnalysisManager {
             // 如果没有拾取到模型，尝试拾取地形
             const terrainPosition = this.viewer.camera.pickEllipsoid(windowPosition, this.scene.globe.ellipsoid);
             if (terrainPosition) {
-                console.log('📍 拾取到地形位置:', terrainPosition);
+                // 拾取到地形位置
                 return terrainPosition;
             }
             
@@ -105,7 +105,7 @@ class InteractiveAnalysisManager {
             if (ray) {
                 const intersection = this.scene.globe.pick(ray, this.scene);
                 if (intersection) {
-                    console.log('🌍 通过射线拾取到位置:', intersection);
+                    // 通过射线拾取到位置
                     return intersection;
                 }
             }
@@ -131,6 +131,9 @@ class InteractiveAnalysisManager {
                 break;
             case 'sightline':
                 this.handleSightlineClick(position);
+                break;
+            case 'sightline-multi':
+                this.handleMultiSightlineClick(position);
                 break;
             case 'sightline-viewpoint':
                 this.handleSightlineViewPointClick(position);
@@ -161,7 +164,7 @@ class InteractiveAnalysisManager {
             this.points = [];
             this.currentStep = 0;
             
-            console.log('✅ 启动可视域分析交互模式');
+            // console.log('✅ 启动可视域分析交互模式');
         } catch (error) {
             console.error('❌ 启动可视域分析失败:', error);
         }
@@ -177,7 +180,7 @@ class InteractiveAnalysisManager {
             this.points = [];
             this.currentStep = 0;
             
-            console.log('✅ 启动裁剪面绘制交互模式');
+            // console.log('✅ 启动裁剪面绘制交互模式');
         } catch (error) {
             console.error('❌ 启动裁剪面绘制失败:', error);
         }
@@ -217,7 +220,7 @@ class InteractiveAnalysisManager {
             this.drawTempLine();
         }
         
-        console.log(`✅ 添加裁剪面点 ${this.points.length}:`, position);
+        // 添加裁剪面点
     }
     
     /**
@@ -242,6 +245,43 @@ class InteractiveAnalysisManager {
             this.completeOperation();
         }
     }
+    
+    /**
+     * 处理多点通视分析点击
+     */
+    handleMultiSightlineClick(position) {
+        try {
+            if (this.currentStep === 0) {
+                // 设置观察点
+                if (this.digitalTwinAnalysis && this.digitalTwinAnalysis.setSightlineViewPoint) {
+                    const success = this.digitalTwinAnalysis.setSightlineViewPoint(position);
+                    if (success) {
+                        // 不再添加临时点，因为setSightlineViewPoint方法已经创建了永久标记
+                        this.currentStep = 1;
+                        this.points = [position]; // 保存观察点
+                        this.showMessage('观察点已设置，请点击添加目标点（可添加多个）');
+                    } else {
+                        this.showMessage('观察点设置失败，请重新点击');
+                    }
+                }
+            } else if (this.currentStep === 1) {
+                // 添加目标点
+                if (this.digitalTwinAnalysis && this.digitalTwinAnalysis.addSightlineTargetPoint) {
+                    const success = this.digitalTwinAnalysis.addSightlineTargetPoint(position);
+                    if (success) {
+                        // 不再添加临时点，因为addSightlineTargetPoint方法已经创建了永久标记
+                        this.points.push(position);
+                        this.showMessage(`目标点${this.points.length - 1}已添加，可继续添加更多目标点或右键完成`);
+                    } else {
+                        this.showMessage('目标点添加失败，请重新点击');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('❌ 处理多点通视分析点击失败:', error);
+            this.showMessage('操作失败: ' + error.message);
+        }
+    }
 
     /**
      * 处理通视分析观察点点击
@@ -253,10 +293,10 @@ class InteractiveAnalysisManager {
             if (this.digitalTwinAnalysis && this.digitalTwinAnalysis.setSightlineViewPoint) {
                 const success = this.digitalTwinAnalysis.setSightlineViewPoint(position);
                 if (success) {
-                    console.log('✅ 观察点设置成功:', position);
+                    // console.log('✅ 观察点设置成功');
                     this.showMessage('观察点已设置，请继续添加目标点');
                     // 切换到目标点添加模式，但不停止交互
-                    this.currentMode = 'sightline-target-point';
+                    this.currentMode = 'sightline-targetpoint';
                 } else {
                     console.warn('⚠️ 观察点设置失败');
                     this.showMessage('观察点设置失败');
@@ -278,8 +318,8 @@ class InteractiveAnalysisManager {
             if (this.digitalTwinAnalysis && this.digitalTwinAnalysis.addSightlineTargetPoint) {
                 const success = this.digitalTwinAnalysis.addSightlineTargetPoint(position);
                 if (success) {
-                    console.log('✅ 目标点添加成功:', position);
-                    this.showMessage('目标点已添加，可继续添加更多目标点或点击清除');
+                    // console.log('✅ 目标点添加成功');
+                    this.showMessage('目标点已添加，可继续添加更多目标点或右键完成');
                     // 保持在目标点添加模式，不停止交互
                 } else {
                     console.warn('⚠️ 目标点添加失败');
@@ -349,7 +389,7 @@ class InteractiveAnalysisManager {
      */
     addTempPoint(position, label, color) {
         try {
-            console.log('📍 添加临时点标记:', label, position);
+            // 添加临时点标记
             
             const entity = this.viewer.entities.add({
                 position: position,
@@ -377,7 +417,7 @@ class InteractiveAnalysisManager {
             });
             
             this.tempEntities.push(entity);
-            console.log('✅ 临时点标记添加成功:', label);
+            // 临时点标记添加成功
             
             return entity;
         } catch (error) {
@@ -413,7 +453,7 @@ class InteractiveAnalysisManager {
             });
             
             this.tempEntities.push(entity);
-            console.log('✅ 绘制临时线条成功');
+            // 绘制临时线条成功
             
         } catch (error) {
             console.error('❌ 绘制临时线条失败:', error);
@@ -452,6 +492,34 @@ class InteractiveAnalysisManager {
                     this.digitalTwinAnalysis.measureArea(this.points);
                 }
                 break;
+            case 'sightline-multi':
+                if (this.points.length >= 2) {
+                    // 执行多点通视分析
+                    const viewPoint = this.points[0]; // 第一个点是观察点
+                    const targetPoints = this.points.slice(1); // 其余点是目标点
+                    
+                    this.digitalTwinAnalysis.performMultiSightlineAnalysis(viewPoint, targetPoints);
+                }
+                break;
+            case 'sightline-targetpoint':
+                // 对于目标点模式，需要检查是否已经设置了观察点
+                if (this.digitalTwinAnalysis && this.digitalTwinAnalysis.sightlineViewPoint) {
+                    // 获取所有已添加的目标点
+                    const targetPoints = this.digitalTwinAnalysis.sightlineTargetPoints || [];
+                    if (targetPoints.length > 0) {
+                        // 执行多点通视分析
+                        this.digitalTwinAnalysis.performMultiSightlineAnalysis(
+                            this.digitalTwinAnalysis.sightlineViewPoint,
+                            targetPoints
+                        );
+                        console.log('✅ 自动执行多点通视分析完成');
+                    } else {
+                        console.warn('⚠️ 没有找到目标点，无法执行通视分析');
+                    }
+                } else {
+                    console.warn('⚠️ 请先设置观察点，再添加目标点');
+                }
+                break;
         }
         
         this.stopInteraction();
@@ -474,7 +542,7 @@ class InteractiveAnalysisManager {
         // 改变鼠标样式
         this.scene.canvas.style.cursor = 'crosshair';
         
-        console.log(`🎯 开始${this.getModeDisplayName(mode)}交互`);
+        // console.log('✅ 开始交互');
     }
     
     /**
@@ -499,7 +567,7 @@ class InteractiveAnalysisManager {
         // 隐藏提示信息
         this.hideMessage();
         
-        console.log('🛑 停止交互');
+        // console.log('✅ 停止交互');
     }
     
     /**
@@ -507,7 +575,7 @@ class InteractiveAnalysisManager {
      */
     drawSightline(startPosition, endPosition) {
         try {
-            console.log('📏 绘制通视线:', startPosition, endPosition);
+            // 绘制通视线
             
             const entity = this.viewer.entities.add({
                 polyline: {
@@ -520,7 +588,7 @@ class InteractiveAnalysisManager {
             });
             
             this.tempEntities.push(entity);
-            console.log('✅ 通视线绘制成功');
+            // 通视线绘制成功
             
             return entity;
         } catch (error) {
@@ -534,12 +602,12 @@ class InteractiveAnalysisManager {
      */
     clearTempEntities() {
         try {
-            console.log('🧹 开始清除临时实体，当前数量:', this.tempEntities.length);
+            // 开始清除临时实体
             
             this.tempEntities.forEach(entity => {
                 if (this.viewer.entities.contains(entity)) {
                     this.viewer.entities.remove(entity);
-                    console.log('🗑️ 清除临时实体:', entity.label ? entity.label.text._value : '未命名临时实体');
+                    // 清除临时实体
                 }
             });
             
@@ -549,7 +617,7 @@ class InteractiveAnalysisManager {
             if (this.currentMode && this.currentMode.includes('sightline')) {
                 if (this.digitalTwinAnalysis && this.digitalTwinAnalysis.clearSightlineAnalysis) {
                     this.digitalTwinAnalysis.clearSightlineAnalysis();
-                    console.log('✅ 调用通视分析专门清除方法');
+                    // 调用通视分析专门清除方法
                 }
                 
                 // 额外的兜底清理 - 清除可能遗漏的实体
@@ -612,6 +680,7 @@ class InteractiveAnalysisManager {
             'sightline': '请点击设置起点',
             'sightline-viewpoint': '请点击地图设置观察点',
             'sightline-targetpoint': '请点击地图添加目标点',
+            'sightline-multi': '请点击设置观察点',
             'profile': '请点击设置剖面线起点',
 
             'measurement-distance': '请点击设置测量起点',
@@ -643,7 +712,7 @@ class InteractiveAnalysisManager {
      * 显示消息
      */
     showMessage(message) {
-        console.log('💡 ' + message);
+        // console.log('💡 ' + message);
         
         // 显示交互提示消息
         const messageElement = document.getElementById('interactionMessage');
@@ -676,7 +745,7 @@ class InteractiveAnalysisManager {
             this.handler = null;
         }
         
-        console.log('🗑️ 交互式分析管理器已销毁');
+        // console.log('🗑️ 交互式分析管理器已销毁');
     }
 }
 
