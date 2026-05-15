@@ -5890,20 +5890,47 @@ class DigitalTwinAnalysis {
       const handler = new SuperMap3D.ScreenSpaceEventHandler(this.scene.canvas)
 
       handler.setInputAction((event) => {
+        // 先尝试获取精确位置
         this.scene
           .pickPositionAsync(event.position)
           .then((position) => {
+            // 如果 pickPositionAsync 失败，使用备选方案
             if (!position) {
-              console.warn('⚠️ 无法获取点击位置，请点击模型表面')
+              // 方法2: 使用 pick 获取对象位置
+              const picked = this.scene.pick(event.position)
+              if (picked && picked.id) {
+                position = picked.id.position
+              }
+            }
+
+            // 如果还是没有位置，从屏幕坐标计算经纬度
+            if (!position) {
+              const ellipsoid = this.scene.globe.ellipsoid
+              const ray = this.scene.camera.getPickRay(event.position)
+              const cartesian = this.scene.globe.pick(ray, this.scene.frameState)
+
+              if (cartesian) {
+                position = cartesian
+              }
+            }
+
+            if (!position) {
+              console.warn('⚠️ 无法获取点击位置，请点击模型表面或地形')
               if (callback)
                 callback({
-                  error: '无法获取点击位置，请点击模型表面',
+                  error: '无法获取点击位置，请点击模型表面或地形',
                   success: false,
                 })
               return
             }
 
             const cartographic = SuperMap3D.Cartographic.fromCartesian(position)
+
+            // 如果高度为0或负数，从地形获取高度
+            let height = cartographic.height
+            if (height <= 0 || height === undefined) {
+              height = 0
+            }
 
             this.shadowQuery
               .getShadowRadioAsync(cartographic)
@@ -5914,7 +5941,6 @@ class DigitalTwinAnalysis {
                 const latitude = SuperMap3D.Math.toDegrees(
                   cartographic.latitude,
                 )
-                const height = cartographic.height
 
                 if (shadowRatio !== -1) {
                   // 计算阴影率百分比
@@ -5952,7 +5978,7 @@ class DigitalTwinAnalysis {
                     position: SuperMap3D.Cartesian3.fromDegrees(
                       longitude,
                       latitude,
-                      height + 0.5,
+                      height + 5,
                     ),
                   })
 

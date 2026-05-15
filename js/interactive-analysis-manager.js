@@ -485,6 +485,9 @@ class InteractiveAnalysisManager {
             case 'measurement-distance':
                 if (this.points.length >= 2) {
                     this.digitalTwinAnalysis.measureDistance(this.points);
+                } else {
+                    this.showMessage('距离测量至少需要两个点，请继续点击添加点');
+                    return; // 不停止交互，等待用户继续添加点
                 }
                 break;
             case 'measurement-area':

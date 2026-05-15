@@ -454,15 +454,20 @@ class IntelligentAnalysisAssistant {
    */
   toggleAssistant() {
     this.isAssistantActive = !this.isAssistantActive
+    const panel = document.getElementById('intelligentAssistantPanel')
     const content = document.querySelector('.assistant-content')
     const toggleBtn = document.getElementById('toggleAssistant')
 
     if (this.isAssistantActive) {
+      // 展开状态
+      panel.classList.remove('collapsed')
       content.style.display = 'block'
       toggleBtn.textContent = '关闭助手'
       toggleBtn.classList.remove('btn-primary')
       toggleBtn.classList.add('btn-danger')
     } else {
+      // 收起状态
+      panel.classList.add('collapsed')
       content.style.display = 'none'
       toggleBtn.textContent = '开启助手'
       toggleBtn.classList.remove('btn-danger')
@@ -787,10 +792,33 @@ class IntelligentAnalysisAssistant {
     const messagesContainer = document.getElementById('chatMessages')
     const messageDiv = document.createElement('div')
     messageDiv.className = `message ${sender}`
-    messageDiv.textContent = content
+
+    // 支持HTML内容
+    if (sender === 'system') {
+      messageDiv.textContent = content
+    } else {
+      // 用户和助手消息使用innerHTML，支持简单的文本格式化
+      messageDiv.innerHTML = this.formatMessage(content)
+    }
 
     messagesContainer.appendChild(messageDiv)
     messagesContainer.scrollTop = messagesContainer.scrollHeight
+  }
+
+  /**
+   * 格式化消息内容
+   */
+  formatMessage(content) {
+    // 转义HTML特殊字符
+    let formatted = content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+
+    // 将换行符转换为<br>
+    formatted = formatted.replace(/\n/g, '<br>')
+
+    return formatted
   }
 
   /**

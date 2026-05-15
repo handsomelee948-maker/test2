@@ -1,0 +1,3 @@
+先输入cd d:\ai_twin-v8\mcp-server
+再输入 node server.js
+然后新建终端，输入npm start

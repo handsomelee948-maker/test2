@@ -2470,7 +2470,6 @@ class RealityTwin3DAnalysisTool {
           const setRouteBtn = document.getElementById('setRouteBtn')
           if (setRouteBtn) {
             setRouteBtn.textContent = '设置路径'
-            setRouteBtn.className = 'btn btn-warning'
           }
 
           // 清空路径点数组
@@ -2949,7 +2948,6 @@ class RealityTwin3DAnalysisTool {
 
     if (this.navigationMode) {
       btn.textContent = '退出路径设置'
-      btn.className = 'btn btn-danger'
 
       // 清除之前的路径点和所有导航相关元素
       this.routePoints = []
@@ -2968,7 +2966,6 @@ class RealityTwin3DAnalysisTool {
       this.updateStatus('请在地图上点击设置起点')
     } else {
       btn.textContent = '设置路径'
-      btn.className = 'btn btn-warning'
       this.routePoints = []
 
       if (this.indoorNavigation) {
@@ -3494,7 +3491,6 @@ class RealityTwin3DAnalysisTool {
       const setRouteBtn = document.getElementById('setRouteBtn')
       if (setRouteBtn) {
         setRouteBtn.textContent = '设置路径'
-        setRouteBtn.className = 'btn btn-warning'
       }
 
       // 清空路径点数组
@@ -3640,7 +3636,6 @@ class RealityTwin3DAnalysisTool {
       const setRouteBtn = document.getElementById('setRouteBtn')
       if (setRouteBtn) {
         setRouteBtn.textContent = '设置路径'
-        setRouteBtn.className = 'btn btn-warning'
       }
 
       // 清空路径点数组
@@ -4586,7 +4581,6 @@ class RealityTwin3DAnalysisTool {
         const setRouteBtn = document.getElementById('setRouteBtn')
         if (setRouteBtn) {
           setRouteBtn.textContent = '设置路径'
-          setRouteBtn.className = 'btn btn-warning'
         }
 
         console.log(`✅ 路径设置完成，共${this.routePoints.length}个路径点`)
